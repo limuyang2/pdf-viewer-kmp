@@ -1,19 +1,31 @@
+# IDE and local machine
+.idea/
 *.iml
-.kotlin
-.gradle
-**/build/
-xcuserdata
-!src/**/build/
 local.properties
-.idea
+captures/
 .DS_Store
-captures
-.externalNativeBuild
-.cxx
+
+# Gradle and Kotlin
+.gradle/
+.kotlin/
+.konan/
+**/build/
+!src/**/build/
+
+# Android native builds
+.externalNativeBuild/
+.cxx/
+
+# JavaScript tooling
+node_modules/
+
+# Xcode user state
+xcuserdata/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
-node_modules/
+
+# kotlin-js-store is intentionally tracked for reproducible JS/Wasm installs.

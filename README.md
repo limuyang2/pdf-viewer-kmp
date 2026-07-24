@@ -1,5 +1,33 @@
 This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
 
+### PDFium native dependencies
+
+The `pdf-viewer` module vendors PDFium `chromium/7961` release binaries from
+[`bblanchon/pdfium-binaries`](https://github.com/bblanchon/pdfium-binaries).
+It uses the standard build without V8 or XFA.
+
+The checked-in local dependencies cover:
+
+- Android: `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`
+- iOS: device arm64 and simulator arm64
+- JVM: macOS arm64/x64, Windows x64, and Linux x64
+- Web: the experimental Emscripten `pdfium.js` and `pdfium.wasm`
+
+To replace them with another immutable release:
+
+```bash
+https_proxy=http://127.0.0.1:7890 \
+http_proxy=http://127.0.0.1:7890 \
+all_proxy=socks5://127.0.0.1:7891 \
+./scripts/update-pdfium.sh chromium/<build>
+```
+
+The script downloads every platform package into a temporary directory,
+records archive SHA-256 values in
+`pdf-viewer/pdfium/manifest.properties`, then replaces the local platform
+files. Review that manifest and run the platform builds before accepting an
+upgrade.
+
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
   you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
 
