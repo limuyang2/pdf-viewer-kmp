@@ -48,6 +48,11 @@ kotlin {
         iosArm64() to "iosArm64",
         iosSimulatorArm64() to "iosSimulatorArm64",
     ).forEach { (target, libraryDirectory) ->
+        val deploymentTargetOverride =
+            "-Xoverride-konan-properties=" +
+                "osVersionMin.ios_arm64=$pdfiumIosDeploymentTarget;" +
+                "osVersionMin.ios_simulator_arm64=$pdfiumIosDeploymentTarget"
+
         target.compilations.getByName("main") {
             cinterops.create("pdfium") {
                 definitionFile.set(pdfiumInteropDefinition)
@@ -55,26 +60,28 @@ kotlin {
             }
         }
 
-        target.binaries.framework {
-            baseName = "PdfViewerKit"
-            freeCompilerArgs +=
-                "-Xoverride-konan-properties=" +
-                    "osVersionMin.ios_arm64=$pdfiumIosDeploymentTarget;" +
-                    "osVersionMin.ios_simulator_arm64=$pdfiumIosDeploymentTarget"
+        target.binaries.all {
+            freeCompilerArgs += deploymentTargetOverride
             linkerOpts(
                 "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
                 "-lpdfium",
             )
+        }
+
+        target.binaries.framework {
+            baseName = "PdfViewerKit"
         }
     }
 
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlin.stdlib)
+            implementation(libs.kotlinx.coroutinesCore)
         }
 
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutinesTest)
         }
 
         getByName("androidDeviceTest").dependencies {

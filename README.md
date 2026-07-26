@@ -1,79 +1,189 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
+# PDF Viewer KMP
 
-### PDFium native dependencies
+PDF Viewer KMP provides a platform-neutral Kotlin API for opening, inspecting,
+rendering, and reading PDF documents with
+[PDFium](https://pdfium.googlesource.com/pdfium/).
 
-The `pdf-viewer` module vendors PDFium `chromium/7961` release binaries from
-[`bblanchon/pdfium-binaries`](https://github.com/bblanchon/pdfium-binaries).
-It uses the standard build without V8 or XFA.
+The current preview supports iOS arm64. Android, JVM, JavaScript, and Wasm
+artifacts contain their PDFium binaries, but their Kotlin backends are still
+planned.
 
-The checked-in local dependencies cover:
+## Installation
 
-- Android: `armeabi-v7a`, `arm64-v8a`, `x86`, and `x86_64`
-- iOS: device arm64 and simulator arm64
-- JVM: macOS arm64/x64, Windows x64, and Linux x64
-- Web: the experimental Emscripten `pdfium.js` and `pdfium.wasm`
+A Maven artifact is not published yet. When using this repository directly,
+add the library module to `commonMain`:
 
-The upstream iOS binaries for this release require iOS 26.0. The iOS app and
-the generated Kotlin frameworks use the same deployment target. PDFium is
-linked through `@rpath/libpdfium.dylib`; the Xcode build embeds the matching
-device or simulator binary in the app's `Frameworks` directory and signs it.
-
-To replace them with another immutable release:
-
-```bash
-https_proxy=http://127.0.0.1:7890 \
-http_proxy=http://127.0.0.1:7890 \
-all_proxy=socks5://127.0.0.1:7891 \
-./scripts/update-pdfium.sh chromium/<build>
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":pdf-viewer"))
+        }
+    }
+}
 ```
 
-The script downloads every platform package into a temporary directory,
-records archive SHA-256 values in
-`pdf-viewer/pdfium/manifest.properties`, then replaces the local platform
-files. Review that manifest and run the platform builds before accepting an
-upgrade.
+## Platform support
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+| Platform | Status |
+| --- | --- |
+| iOS device arm64 | Available |
+| iOS simulator arm64 | Available |
+| iOS x64 | Not supported |
+| iOS Catalyst | Not supported |
+| Android | Planned |
+| JVM | Planned |
+| JavaScript/Wasm | Planned |
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
+The bundled PDFium build is pinned to `chromium/7961`, uses binaries from
+[`bblanchon/pdfium-binaries`](https://github.com/bblanchon/pdfium-binaries),
+and does not include V8 or XFA.
 
-### Running the apps
+## Open and inspect a document
 
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
+```kotlin
+import io.github.limuyang2.pdf.viewer.PdfSource
+import io.github.limuyang2.pdf.viewer.PdfViewer
 
-- Android app: `./gradlew :androidApp:assembleDebug`
-- Desktop app:
-  - Hot reload: `./gradlew :desktopApp:hotRun --auto`
-  - Standard run: `./gradlew :desktopApp:run`
-- Web app:
-  - Wasm target (faster, modern browsers): `./gradlew :webApp:wasmJsBrowserDevelopmentRun`
-  - JS target (slower, supports older browsers): `./gradlew :webApp:jsBrowserDevelopmentRun`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
+suspend fun inspectPdf(pdfBytes: ByteArray) {
+    val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
+    try {
+        println("Pages: ${document.pageCount}")
+        println("Title: ${document.metadata().title}")
 
-### Running tests
+        if (document.pageCount > 0) {
+            val page = document[0]
+            val information = page.information()
+            println(
+                "Page size: ${information.size.width} × " +
+                    "${information.size.height} points",
+            )
+            println("Text: ${page.extractText()}")
+        }
+    } finally {
+        document.close()
+    }
+}
+```
 
-Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
+Password-protected documents can be opened by passing `password`:
 
-- Android tests: `./gradlew :shared:testAndroidHostTest`
-- Desktop tests: `./gradlew :shared:jvmTest`
-- Web tests:
-  - Wasm target: `./gradlew :shared:wasmJsTest`
-  - JS target: `./gradlew :shared:jsTest`
-- iOS tests: `./gradlew :shared:iosSimulatorArm64Test`
+```kotlin
+val document =
+    PdfViewer.open(
+        source = PdfSource.Bytes(pdfBytes),
+        password = "secret",
+    )
+try {
+    // Read or render the document.
+} finally {
+    document.close()
+}
+```
 
----
+Missing and incorrect passwords are reported as
+`PdfPasswordRequiredException` and `PdfIncorrectPasswordException`.
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com.cn/en-us/help/kotlin-multiplatform-dev/get-started.html),
-[Compose Multiplatform](https://github.com/JetBrains/compose-multiplatform/#compose-multiplatform),
-[Kotlin/Wasm](https://kotl.in/wasm/)…
+## Render a page
 
-We would appreciate your feedback on Compose/Web and Kotlin/Wasm in the public Slack channel [#compose-web](https://slack-chats.kotlinlang.org/c/compose-web).
-If you face any issues, please report them on [YouTrack](https://youtrack.jetbrains.com/newIssue?project=CMP).
+```kotlin
+import io.github.limuyang2.pdf.viewer.PdfPixelSize
+import io.github.limuyang2.pdf.viewer.PdfRenderRequest
+import io.github.limuyang2.pdf.viewer.PdfSource
+import io.github.limuyang2.pdf.viewer.PdfViewer
+
+suspend fun renderFirstPage(pdfBytes: ByteArray): RenderedPage {
+    val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
+    try {
+        require(document.pageCount > 0)
+
+        val bitmap =
+            document[0].render(
+                PdfRenderRequest(
+                    outputSize = PdfPixelSize(width = 1200, height = 1600),
+                ),
+            )
+        try {
+            return RenderedPage(
+                width = bitmap.width,
+                height = bitmap.height,
+                stride = bitmap.stride,
+                bgraPixels = bitmap.copyPixels(),
+            )
+        } finally {
+            bitmap.close()
+        }
+    } finally {
+        document.close()
+    }
+}
+
+data class RenderedPage(
+    val width: Int,
+    val height: Int,
+    val stride: Int,
+    val bgraPixels: ByteArray,
+)
+```
+
+Rendering currently produces full-page `Bgra8888` pixels. `stride` is the
+number of bytes between adjacent rows and should be used instead of assuming
+tightly packed rows.
+
+## Resource ownership
+
+- Always close `PdfDocument` and `PdfBitmap`; both support idempotent `close()`.
+- A `PdfPage` is a lightweight descriptor and becomes unusable when its parent
+  document is closed.
+- Do not mutate a `PdfSource.Bytes` array while its document is open.
+- A rendered bitmap owns its Kotlin pixel buffer and may outlive the document.
+- PDFium calls are serialized internally; callers may use the suspend API from
+  different coroutines.
+
+## iOS integration
+
+The bundled iOS PDFium binaries require iOS 26.0. Applications and frameworks
+using this library must use the same or a newer deployment target.
+
+`PdfViewerKit.framework` links PDFium dynamically:
+
+```text
+@rpath/libpdfium.dylib
+```
+
+The framework does not contain the PDFium dylib. An application consuming the
+framework must embed and sign the matching binary:
+
+- device:
+  `pdf-viewer/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib`
+- simulator:
+  `pdf-viewer/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib`
+
+The included `iosApp` Xcode project already selects, embeds, and signs the
+correct dylib.
+
+## Available API
+
+The current iOS backend supports:
+
+- `PdfSource.Bytes` and optional passwords;
+- page count, PDF version, permissions, metadata, and page labels;
+- page size, intrinsic rotation, and bounding box;
+- full-page BGRA8888 rendering, including background color, annotation,
+  grayscale, LCD text, and quarter-turn rotation options;
+- basic page text extraction.
+
+Use `PdfViewer.capabilities` to inspect optional backend features at runtime.
+
+## Current limitations
+
+The following features are not available yet:
+
+- random-access sources;
+- cropped or region rendering with `sourceRect`;
+- thumbnails;
+- text layout, character geometry, and search;
+- links and bookmarks;
+- forms, editing, progressive loading/rendering, JavaScript, and XFA.
+
+Calling an unavailable feature throws `PdfUnsupportedFeatureException`.

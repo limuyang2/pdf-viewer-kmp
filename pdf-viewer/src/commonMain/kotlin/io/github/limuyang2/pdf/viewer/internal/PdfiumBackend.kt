@@ -1,0 +1,94 @@
+package io.github.limuyang2.pdf.viewer.internal
+
+import io.github.limuyang2.pdf.viewer.PdfBitmap
+import io.github.limuyang2.pdf.viewer.PdfBookmark
+import io.github.limuyang2.pdf.viewer.PdfCapabilities
+import io.github.limuyang2.pdf.viewer.PdfDocumentInfo
+import io.github.limuyang2.pdf.viewer.PdfLink
+import io.github.limuyang2.pdf.viewer.PdfMetadata
+import io.github.limuyang2.pdf.viewer.PdfPageInfo
+import io.github.limuyang2.pdf.viewer.PdfPixelSize
+import io.github.limuyang2.pdf.viewer.PdfRenderRequest
+import io.github.limuyang2.pdf.viewer.PdfSearchMatch
+import io.github.limuyang2.pdf.viewer.PdfSearchOptions
+import io.github.limuyang2.pdf.viewer.PdfSource
+import io.github.limuyang2.pdf.viewer.PdfTextLayout
+import io.github.limuyang2.pdf.viewer.PdfTextRange
+
+/**
+ * Semantic boundary implemented by each platform backend.
+ *
+ * Every function owns all temporary PDFium handles it creates. Only the
+ * document handle can outlive an individual call.
+ */
+internal interface PdfiumBackend {
+    val capabilities: PdfCapabilities
+
+    fun initialize()
+
+    fun destroy()
+
+    suspend fun open(
+        source: PdfSource,
+        password: String?,
+    ): OpenedDocument
+
+    fun close(document: NativeDocumentHandle)
+
+    suspend fun documentInformation(
+        document: NativeDocumentHandle,
+    ): PdfDocumentInfo
+
+    suspend fun metadata(
+        document: NativeDocumentHandle,
+    ): PdfMetadata
+
+    suspend fun bookmarks(
+        document: NativeDocumentHandle,
+    ): List<PdfBookmark>
+
+    suspend fun pageLabel(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+    ): String?
+
+    suspend fun pageInformation(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+    ): PdfPageInfo
+
+    suspend fun render(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+        request: PdfRenderRequest,
+    ): PdfBitmap
+
+    suspend fun thumbnail(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+        maximumSize: PdfPixelSize,
+    ): PdfBitmap?
+
+    suspend fun extractText(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+        range: PdfTextRange?,
+    ): String
+
+    suspend fun textLayout(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+    ): PdfTextLayout
+
+    suspend fun search(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+        query: String,
+        options: PdfSearchOptions,
+    ): List<PdfSearchMatch>
+
+    suspend fun links(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+    ): List<PdfLink>
+}
