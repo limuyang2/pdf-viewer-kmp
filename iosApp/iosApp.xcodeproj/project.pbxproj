@@ -152,7 +152,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n\ncase \"$PLATFORM_NAME\" in\n  iphoneos)\n    PDFIUM_SOURCE=\"$PWD/pdf-viewer/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib\"\n    ;;\n  iphonesimulator)\n    PDFIUM_SOURCE=\"$PWD/pdf-viewer/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib\"\n    ;;\n  *)\n    echo \"Unsupported Apple platform for PDFium: $PLATFORM_NAME\" >&2\n    exit 1\n    ;;\nesac\n\nPDFIUM_DESTINATION=\"$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/libpdfium.dylib\"\nmkdir -p \"$(dirname \"$PDFIUM_DESTINATION\")\"\nditto \"$PDFIUM_SOURCE\" \"$PDFIUM_DESTINATION\"\nchmod u+w \"$PDFIUM_DESTINATION\"\n\nif [ -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]; then\n  codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --timestamp=none \"$PDFIUM_DESTINATION\"\nelse\n  codesign --force --sign - --timestamp=none \"$PDFIUM_DESTINATION\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -221,7 +221,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -280,7 +280,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;

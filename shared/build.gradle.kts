@@ -9,13 +9,26 @@ plugins {
 }
 
 kotlin {
+    val pdfiumIosDeploymentTarget = "26.0"
+    val pdfiumLibraries =
+        project(":pdf-viewer").projectDir.resolve("src/nativeInterop/cinterop/lib")
+
     listOf(
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
+        iosArm64() to "iosArm64",
+        iosSimulatorArm64() to "iosSimulatorArm64",
+    ).forEach { (iosTarget, libraryDirectory) ->
         iosTarget.binaries.framework {
             baseName = "Shared"
-            isStatic = true
+            isStatic = false
+            binaryOption("bundleId", "io.github.limuyang2.pdfdemo.shared")
+            freeCompilerArgs +=
+                "-Xoverride-konan-properties=" +
+                    "osVersionMin.ios_arm64=$pdfiumIosDeploymentTarget;" +
+                    "osVersionMin.ios_simulator_arm64=$pdfiumIosDeploymentTarget"
+            linkerOpts(
+                "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
+                "-lpdfium",
+            )
         }
     }
     
@@ -57,6 +70,7 @@ kotlin {
             implementation(libs.compose.uiTooling)
         }
         commonMain.dependencies {
+            implementation(project(":pdf-viewer"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

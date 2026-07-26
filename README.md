@@ -13,6 +13,11 @@ The checked-in local dependencies cover:
 - JVM: macOS arm64/x64, Windows x64, and Linux x64
 - Web: the experimental Emscripten `pdfium.js` and `pdfium.wasm`
 
+The upstream iOS binaries for this release require iOS 26.0. The iOS app and
+the generated Kotlin frameworks use the same deployment target. PDFium is
+linked through `@rpath/libpdfium.dylib`; the Xcode build embeds the matching
+device or simulator binary in the app's `Frameworks` directory and signs it.
+
 To replace them with another immutable release:
 
 ```bash

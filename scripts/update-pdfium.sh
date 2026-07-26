@@ -92,6 +92,16 @@ extract_file ios-device-arm64 lib/libpdfium.dylib \
 extract_file ios-simulator-arm64 lib/libpdfium.dylib \
     "$stage_dir/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib"
 
+if ! command -v install_name_tool >/dev/null 2>&1; then
+    echo "install_name_tool is required to prepare the iOS PDFium binaries" >&2
+    exit 1
+fi
+
+install_name_tool -id @rpath/libpdfium.dylib \
+    "$stage_dir/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib"
+install_name_tool -id @rpath/libpdfium.dylib \
+    "$stage_dir/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib"
+
 extract_file mac-arm64 lib/libpdfium.dylib \
     "$stage_dir/jvm/pdfium/darwin-aarch64/libpdfium.dylib"
 extract_file mac-x64 lib/libpdfium.dylib \

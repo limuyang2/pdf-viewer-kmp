@@ -8,6 +8,8 @@ plugins {
 }
 
 kotlin {
+    val pdfiumIosDeploymentTarget = "26.0"
+
     android {
         namespace = "io.github.limuyang2.pdf.viewer"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -55,6 +57,10 @@ kotlin {
 
         target.binaries.framework {
             baseName = "PdfViewerKit"
+            freeCompilerArgs +=
+                "-Xoverride-konan-properties=" +
+                    "osVersionMin.ios_arm64=$pdfiumIosDeploymentTarget;" +
+                    "osVersionMin.ios_simulator_arm64=$pdfiumIosDeploymentTarget"
             linkerOpts(
                 "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
                 "-lpdfium",
