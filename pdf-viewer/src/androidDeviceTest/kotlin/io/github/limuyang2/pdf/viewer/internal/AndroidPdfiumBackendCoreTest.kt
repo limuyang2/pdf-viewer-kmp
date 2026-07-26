@@ -1,8 +1,8 @@
 package io.github.limuyang2.pdf.viewer.internal
 
+import io.github.limuyang2.pdf.viewer.PdfInvalidFormatException
 import io.github.limuyang2.pdf.viewer.PdfPixelFormat
 import io.github.limuyang2.pdf.viewer.PdfPixelSize
-import io.github.limuyang2.pdf.viewer.PdfInvalidFormatException
 import io.github.limuyang2.pdf.viewer.PdfRenderRequest
 import io.github.limuyang2.pdf.viewer.PdfSource
 import io.github.limuyang2.pdf.viewer.PdfViewer
@@ -11,31 +11,27 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-internal class IosPdfiumBackendCoreTest {
+internal class AndroidPdfiumBackendCoreTest {
     @Test
-    fun opensInspectsRendersAndExtractsText() =
+    fun opensInspectsRendersAndCloses() =
         runTest {
             val document =
                 PdfViewer.open(
-                    PdfSource.Bytes(createSinglePageTestPdf("Hello")),
+                    PdfSource.Bytes(createSinglePageTestPdf("Android")),
                 )
             var bitmap: io.github.limuyang2.pdf.viewer.PdfBitmap? = null
             try {
                 assertEquals(1, document.pageCount)
-                assertEquals(1, document.information().version?.major)
-
-                val page = document[0]
-                val information = page.information()
+                val information = document[0].information()
                 assertEquals(200.0, information.size.width)
                 assertEquals(300.0, information.size.height)
-                assertEquals("Hello", page.extractText())
 
                 val rendered =
-                    page.render(
+                    document[0].render(
                         PdfRenderRequest(PdfPixelSize(20, 30)),
                     )
                 bitmap = rendered

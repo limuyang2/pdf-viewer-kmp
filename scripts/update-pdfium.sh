@@ -4,6 +4,7 @@ set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 module_dir="$project_root/pdf-viewer"
+android_native_module_dir="$project_root/pdf-viewer-android-native"
 version=${1:-chromium/7961}
 
 if ! printf '%s\n' "$version" | grep -Eq '^chromium/[0-9]+$'; then
@@ -138,7 +139,9 @@ replace_directory() {
     mv "$source" "$target"
 }
 
-replace_directory "$stage_dir/android" "$module_dir/src/androidMain/jniLibs"
+replace_directory \
+    "$stage_dir/android" \
+    "$android_native_module_dir/src/main/jniLibs"
 replace_directory "$stage_dir/jvm" "$module_dir/src/jvmMain/resources"
 replace_directory "$stage_dir/web" "$module_dir/src/webMain/resources"
 replace_directory \

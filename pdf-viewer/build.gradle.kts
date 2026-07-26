@@ -74,6 +74,10 @@ kotlin {
     }
 
     sourceSets {
+        androidMain.dependencies {
+            implementation(project(":pdf-viewer-android-native"))
+        }
+
         commonMain.dependencies {
             implementation(libs.kotlin.stdlib)
             implementation(libs.kotlinx.coroutinesCore)

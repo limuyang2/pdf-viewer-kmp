@@ -4,7 +4,7 @@ PDF Viewer KMP provides a platform-neutral Kotlin API for opening, inspecting,
 rendering, and reading PDF documents with
 [PDFium](https://pdfium.googlesource.com/pdfium/).
 
-The current preview supports iOS arm64. Android, JVM, JavaScript, and Wasm
+The current preview supports Android and iOS arm64. JVM, JavaScript, and Wasm
 artifacts contain their PDFium binaries, but their Kotlin backends are still
 planned.
 
@@ -31,7 +31,7 @@ kotlin {
 | iOS simulator arm64 | Available |
 | iOS x64 | Not supported |
 | iOS Catalyst | Not supported |
-| Android | Planned |
+| Android arm32/arm64/x86/x64 | Available |
 | JVM | Planned |
 | JavaScript/Wasm | Planned |
 
@@ -49,7 +49,6 @@ suspend fun inspectPdf(pdfBytes: ByteArray) {
     val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
     try {
         println("Pages: ${document.pageCount}")
-        println("Title: ${document.metadata().title}")
 
         if (document.pageCount > 0) {
             val page = document[0]
@@ -58,7 +57,6 @@ suspend fun inspectPdf(pdfBytes: ByteArray) {
                 "Page size: ${information.size.width} × " +
                     "${information.size.height} points",
             )
-            println("Text: ${page.extractText()}")
         }
     } finally {
         document.close()
@@ -164,13 +162,17 @@ correct dylib.
 
 ## Available API
 
-The current iOS backend supports:
+Android and iOS both support:
 
 - `PdfSource.Bytes` and optional passwords;
-- page count, PDF version, permissions, metadata, and page labels;
+- page count and document lifecycle;
 - page size, intrinsic rotation, and bounding box;
 - full-page BGRA8888 rendering, including background color, annotation,
-  grayscale, LCD text, and quarter-turn rotation options;
+  grayscale, LCD text, and quarter-turn rotation options.
+
+The iOS backend additionally supports:
+
+- PDF version, permissions, metadata, and page labels;
 - basic page text extraction.
 
 Use `PdfViewer.capabilities` to inspect optional backend features at runtime.
@@ -182,6 +184,7 @@ The following features are not available yet:
 - random-access sources;
 - cropped or region rendering with `sourceRect`;
 - thumbnails;
+- Android document metadata and text extraction;
 - text layout, character geometry, and search;
 - links and bookmarks;
 - forms, editing, progressive loading/rendering, JavaScript, and XFA.
