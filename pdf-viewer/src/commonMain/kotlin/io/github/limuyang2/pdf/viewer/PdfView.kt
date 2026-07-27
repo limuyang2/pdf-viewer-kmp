@@ -75,7 +75,6 @@ public fun PdfView(
     state: PdfViewState = rememberPdfViewState(),
     pageSpacing: Dp = 12.dp,
     pagePadding: Dp = 0.dp,
-    backgroundColor: Color = Color(0xffe5e7eb),
     pageColor: Color = Color.White,
     maxRenderDimension: Int = 4096,
     onPageError: (pageIndex: Int, error: Throwable) -> Unit = { _, _ -> },
@@ -173,7 +172,6 @@ public fun PdfView(
     Box(
         modifier =
             modifier
-                .background(backgroundColor)
                 .onSizeChanged { viewportWidthPixels = it.width }
                 .pdfTransformGestures(
                     gestureKey = state,

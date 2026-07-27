@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.limuyang2.pdf.core.PdfDocument
@@ -120,7 +121,7 @@ public fun App() {
                         PdfView(
                             document = checkNotNull(document),
                             state = viewState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().background(Color(0xffe5e7eb)),
                         )
                     failure != null ->
                         Box(
