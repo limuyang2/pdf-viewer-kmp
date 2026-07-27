@@ -365,105 +365,104 @@ private fun PdfPage(
     onError: (Int, Throwable) -> Unit,
     onLinkActivated: (PdfLink) -> Unit,
 ) {
-    val informationState by
-        produceState<PdfPageInformationState>(
-            initialValue = PdfPageInformationState.Loading,
-            document,
-            pageIndex,
-        ) {
-            value =
-                try {
-                    val information = document[pageIndex].information()
-                    check(
-                        information.size.width > 0.0 &&
+    val informationState by produceState<PdfPageInformationState>(
+        initialValue = PdfPageInformationState.Loading,
+        document,
+        pageIndex,
+    ) {
+        value =
+            try {
+                val information = document[pageIndex].information()
+                check(
+                    information.size.width > 0.0 &&
                             information.size.height > 0.0,
-                    ) {
-                        "PDF page ${pageIndex + 1} has an invalid size"
-                    }
-                    PdfPageInformationState.Ready(information)
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (failure: Throwable) {
-                    onError(pageIndex, failure)
-                    PdfPageInformationState.Failed(failure)
+                ) {
+                    "PDF page ${pageIndex + 1} has an invalid size"
                 }
-        }
-    val pageInformation =
-        when (val current = informationState) {
-            PdfPageInformationState.Loading -> {
-                PdfPagePlaceholder(
-                    width = width,
-                    aspectRatio = DEFAULT_PAGE_ASPECT_RATIO,
-                    pageColor = pageColor,
-                    pageBorder = pageBorder,
-                    pageIndex = pageIndex,
-                    pageLoadingContent = pageLoadingContent,
-                )
-                return
+                PdfPageInformationState.Ready(information)
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Throwable) {
+                onError(pageIndex, failure)
+                PdfPageInformationState.Failed(failure)
             }
-            is PdfPageInformationState.Failed -> {
-                PdfPageError(
-                    width = width,
-                    aspectRatio = DEFAULT_PAGE_ASPECT_RATIO,
-                    pageIndex = pageIndex,
-                    pageColor = pageColor,
-                    pageBorder = pageBorder,
-                    error = current.error,
-                    defaultMessage =
-                        "Page ${pageIndex + 1} could not be loaded",
-                    pageErrorContent = pageErrorContent,
-                )
-                return
+    }
+
+    val pageInformation = when (val current = informationState) {
+        PdfPageInformationState.Loading -> {
+            PdfPagePlaceholder(
+                width = width,
+                aspectRatio = DEFAULT_PAGE_ASPECT_RATIO,
+                pageColor = pageColor,
+                pageBorder = pageBorder,
+                pageIndex = pageIndex,
+                pageLoadingContent = pageLoadingContent,
+            )
+            return
+        }
+
+        is PdfPageInformationState.Failed -> {
+            PdfPageError(
+                width = width,
+                aspectRatio = DEFAULT_PAGE_ASPECT_RATIO,
+                pageIndex = pageIndex,
+                pageColor = pageColor,
+                pageBorder = pageBorder,
+                error = current.error,
+                defaultMessage =
+                    "Page ${pageIndex + 1} could not be loaded",
+                pageErrorContent = pageErrorContent,
+            )
+            return
+        }
+
+        is PdfPageInformationState.Ready -> current.information
+    }
+
+    val links by produceState(
+        initialValue = emptyList<PdfLink>(),
+        document,
+        pageIndex,
+    ) {
+        value =
+            try {
+                document[pageIndex].links()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Throwable) {
+                onError(pageIndex, failure)
+                emptyList()
             }
-            is PdfPageInformationState.Ready -> current.information
-        }
-    val links by
-        produceState(
-            initialValue = emptyList<PdfLink>(),
-            document,
-            pageIndex,
-        ) {
-            value =
-                try {
-                    document[pageIndex].links()
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (failure: Throwable) {
-                    onError(pageIndex, failure)
-                    emptyList()
-                }
-        }
+    }
+
     val currentOnLinkActivated by
         rememberUpdatedState(onLinkActivated)
 
-    val aspectRatio =
-        pageInformation.size.width.toFloat() /
-            pageInformation.size.height.toFloat()
-    val renderSize =
-        remember(pageInformation, renderWidth, maxRenderDimension) {
-            calculateRenderSize(
-                pageInformation = pageInformation,
-                requestedWidth = renderWidth,
-                maximumDimension = maxRenderDimension,
-            )
-        }
-    val cacheKey =
-        remember(pageIndex, renderSize) {
-            PdfRenderCacheKey(
-                pageIndex = pageIndex,
-                width = renderSize.width,
-                height = renderSize.height,
-            )
-        }
-    var renderState by
-        remember(document, pageIndex) {
-            mutableStateOf<PdfPageRenderState>(
-                state
-                    .cachedImage(document, cacheKey)
-                    ?.let(PdfPageRenderState::Ready)
-                    ?: PdfPageRenderState.Loading,
-            )
-        }
+    val aspectRatio = pageInformation.size.width.toFloat() / pageInformation.size.height.toFloat()
+    val renderSize = remember(pageInformation, renderWidth, maxRenderDimension) {
+        calculateRenderSize(
+            pageInformation = pageInformation,
+            requestedWidth = renderWidth,
+            maximumDimension = maxRenderDimension,
+        )
+    }
+
+    val cacheKey = remember(pageIndex, renderSize) {
+        PdfRenderCacheKey(
+            pageIndex = pageIndex,
+            width = renderSize.width,
+            height = renderSize.height,
+        )
+    }
+
+    var renderState by remember(document, pageIndex) {
+        mutableStateOf<PdfPageRenderState>(
+            state
+                .cachedImage(document, cacheKey)
+                ?.let(PdfPageRenderState::Ready)
+                ?: PdfPageRenderState.Loading,
+        )
+    }
 
     LaunchedEffect(document, cacheKey) {
         state.cachedImage(document, cacheKey)?.let {
