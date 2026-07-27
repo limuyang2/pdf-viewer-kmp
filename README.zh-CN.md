@@ -2,6 +2,7 @@
 
 [![pdf-core on Maven Central](https://img.shields.io/maven-central/v/io.github.limuyang2/pdf-core.svg?label=pdf-core)](https://central.sonatype.com/artifact/io.github.limuyang2/pdf-core)
 [![pdf-viewer on Maven Central](https://img.shields.io/maven-central/v/io.github.limuyang2/pdf-viewer.svg?label=pdf-viewer)](https://central.sonatype.com/artifact/io.github.limuyang2/pdf-viewer)
+[![Context7](https://img.shields.io/badge/Context7-AI-5D5FEC.svg)](https://context7.com/limuyang2/pdf-viewer-kmp)
 
 [English](README.md)
 
