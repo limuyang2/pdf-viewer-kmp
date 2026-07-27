@@ -8,7 +8,6 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +17,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
@@ -66,6 +67,7 @@ public fun PdfView(
     }
 
     state.bind(document)
+    var viewportWidthPixels by remember { mutableIntStateOf(0) }
     val transformableState =
         rememberTransformableState { centroid, zoomChange, panChange, _ ->
             val previousZoom = state.zoom
@@ -79,25 +81,37 @@ public fun PdfView(
             )
         }
 
-    BoxWithConstraints(
+    Box(
         modifier =
             modifier
                 .background(backgroundColor)
+                .onSizeChanged { viewportWidthPixels = it.width }
                 .transformable(
                     state = transformableState,
                     canPan = { state.zoom > PdfViewState.MIN_ZOOM },
                 ),
     ) {
-        val viewportWidth = maxWidth
-        val contentWidth = viewportWidth * state.zoom
-        val pageWidth = (contentWidth - pagePadding * 2).coerceAtLeast(1.dp)
+        if (viewportWidthPixels == 0) {
+            Box(Modifier.fillMaxSize())
+            return@Box
+        }
+
+        val density = LocalDensity.current
+        val pagePaddingPixels = with(density) { pagePadding.roundToPx() }
+        val contentWidthPixels =
+            (viewportWidthPixels * state.zoom)
+                .roundToInt()
+                .coerceAtLeast(1)
+        val displayedPageWidthPixels =
+            (contentWidthPixels - pagePaddingPixels * 2)
+                .coerceAtLeast(1)
+        val contentWidth = with(density) { contentWidthPixels.toDp() }
+        val pageWidth = with(density) { displayedPageWidthPixels.toDp() }
         val pageWidthPixels =
-            with(LocalDensity.current) {
-                quantizeRenderWidth(
-                    width = pageWidth.roundToPx(),
-                    maximum = maxRenderDimension,
-                )
-            }
+            quantizeRenderWidth(
+                width = displayedPageWidthPixels,
+                maximum = maxRenderDimension,
+            )
 
         Box(
             modifier =
