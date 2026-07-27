@@ -214,19 +214,27 @@ pdfium/pdfium.wasm
 pdfium/manifest.properties
 ```
 
-`pdfium.js` and `pdfium.wasm` remain byte-for-byte upstream files.
-`pdfium-adapter.js` is project-owned, readable source code.
+`pdfium.wasm` remains byte-for-byte upstream. During an update, the script
+wraps the upstream `pdfium.js` source in a deterministic project-namespaced
+factory. The upstream source inside that wrapper is not otherwise modified.
+This keeps Emscripten's generic `Module` variable function-local instead of
+leaking it into the host application's global scope.
+
+The wrapper prefix, wrapper suffix, and `pdfium-adapter.js` are project-owned,
+readable source files. Their digests are recorded separately from the upstream
+archive digest.
 
 ### Adapter Responsibilities
 
 The adapter is a classic browser script that installs one namespaced global
-object. It must not expose or overwrite a generic global API after
-initialization.
+object. The generated PDFium factory is also project-namespaced. Neither
+script exposes or overwrites a generic `Module` global.
 
 It is responsible for:
 
 - deriving the PDFium asset directory from its own script URL;
-- creating the Emscripten `Module` configuration before loading `pdfium.js`;
+- creating the Emscripten module configuration before invoking the generated
+  factory;
 - resolving `pdfium.wasm` relative to the adapter;
 - loading the upstream script only once;
 - exposing a singleton initialization promise;
