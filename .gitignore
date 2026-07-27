@@ -1,5 +1,6 @@
 # IDE and local machine
 .idea/
+.worktrees/
 *.iml
 local.properties
 captures/
