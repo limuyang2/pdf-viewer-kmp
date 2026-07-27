@@ -10,7 +10,7 @@ import io.github.limuyang2.pdf.core.internal.PdfiumBackend
  * Closing is idempotent and invalidates every [PdfPage] descriptor created
  * from this document.
  */
-public class PdfDocument internal constructor(
+class PdfDocument internal constructor(
     internal val state: PdfDocumentState,
 ) : AutoCloseable {
     public val pageCount: Int

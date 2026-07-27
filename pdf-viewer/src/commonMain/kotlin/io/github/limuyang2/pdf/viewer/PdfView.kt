@@ -92,16 +92,9 @@ fun PdfView(
     onLinkClick: (PdfLink) -> Boolean = { false },
     pageBorder: BorderStroke? = BorderStroke(1.dp, Color(0x22000000)),
     pageLoadingContent: @Composable BoxScope.(pageIndex: Int) -> Unit = {},
-    pageErrorContent: (@Composable BoxScope.(
-        pageIndex: Int,
-        error: Throwable,
-    ) -> Unit)? = null,
+    pageErrorContent: (@Composable BoxScope.(pageIndex: Int, error: Throwable) -> Unit)? = null,
     onUriLinkClick: ((uri: String) -> Unit)? = null,
-    onLinkError: (
-        pageIndex: Int,
-        link: PdfLink,
-        error: Throwable,
-    ) -> Unit = { _, _, _ -> },
+    onLinkError: (pageIndex: Int, link: PdfLink, error: Throwable) -> Unit = { _, _, _ -> },
 ) {
     require(pageSpacing >= 0.dp) { "pageSpacing must be non-negative" }
     require(pagePadding >= 0.dp) { "pagePadding must be non-negative" }
@@ -252,7 +245,7 @@ fun PdfView(
         Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
+                    .matchParentSize()
                     .horizontalScroll(state.horizontalScrollState),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -370,22 +363,21 @@ private fun PdfPage(
         document,
         pageIndex,
     ) {
-        value =
-            try {
-                val information = document[pageIndex].information()
-                check(
-                    information.size.width > 0.0 &&
-                            information.size.height > 0.0,
-                ) {
-                    "PDF page ${pageIndex + 1} has an invalid size"
-                }
-                PdfPageInformationState.Ready(information)
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: Throwable) {
-                onError(pageIndex, failure)
-                PdfPageInformationState.Failed(failure)
+        value = try {
+            val information = document[pageIndex].information()
+            check(
+                information.size.width > 0.0 &&
+                        information.size.height > 0.0,
+            ) {
+                "PDF page ${pageIndex + 1} has an invalid size"
             }
+            PdfPageInformationState.Ready(information)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (failure: Throwable) {
+            onError(pageIndex, failure)
+            PdfPageInformationState.Failed(failure)
+        }
     }
 
     val pageInformation = when (val current = informationState) {
