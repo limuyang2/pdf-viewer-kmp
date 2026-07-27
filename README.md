@@ -21,11 +21,48 @@ add the library module to `commonMain`:
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":pdf-core"))
+            implementation(project(":pdf-viewer"))
         }
     }
 }
 ```
+
+Applications that only need document access and rendering pixels can depend on
+`pdf-core` directly.
+
+## Compose PDF preview
+
+Open a document with `pdf-core`, then pass it to `PdfView`:
+
+```kotlin
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import io.github.limuyang2.pdf.core.PdfDocument
+import io.github.limuyang2.pdf.viewer.PdfView
+import io.github.limuyang2.pdf.viewer.rememberPdfViewState
+
+@Composable
+fun DocumentPreview(document: PdfDocument) {
+    val state = rememberPdfViewState()
+
+    PdfView(
+        document = document,
+        state = state,
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+```
+
+`PdfView` displays a vertically scrolling page list, fits pages to the viewport
+at 100%, and supports 1x to 4x zoom through gestures or `PdfViewState`. It keeps
+a small rendered-page cache and limits either bitmap dimension to 4096 pixels
+by default. Use `scrollToPage()`, `animateScrollToPage()`, `updateZoom()`, and
+`clearRenderCache()` for external controls.
+
+The caller owns the `PdfDocument` and must close it when the preview leaves the
+composition. `PdfView` closes its temporary `PdfBitmap` values but does not
+close the document.
 
 ## Platform support
 
@@ -212,6 +249,8 @@ Use `PdfViewer.capabilities` to inspect optional backend features at runtime.
 
 The following features are not available yet:
 
+- tiled rendering for very large zoom levels;
+- selectable text and viewer search UI;
 - random-access sources;
 - cropped or region rendering with `sourceRect`;
 - thumbnails;
