@@ -56,7 +56,7 @@ kotlin {
 }
 
 val libraryGroup = "io.github.limuyang2"
-val libraryVersion = "0.1.0"
+val libraryVersion = "0.1.1"
 
 extra["publicationGroup"] = libraryGroup
 extra["publicationVersion"] = libraryVersion

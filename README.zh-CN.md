@@ -52,10 +52,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // 只使用 PDF 底层 API：
-            implementation("io.github.limuyang2:pdf-core:0.1.0")
+            implementation("io.github.limuyang2:pdf-core:0.1.1")
 
             // 或使用 Compose Viewer，pdf-core 会被传递引入：
-            implementation("io.github.limuyang2:pdf-viewer:0.1.0")
+            implementation("io.github.limuyang2:pdf-viewer:0.1.1")
         }
     }
 }

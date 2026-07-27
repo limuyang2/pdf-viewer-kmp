@@ -10,7 +10,7 @@
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.limuyang2:pdf-viewer:0.1.0")
+            implementation("io.github.limuyang2:pdf-viewer:0.1.1")
         }
     }
 }
