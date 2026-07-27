@@ -46,7 +46,7 @@ internal object UnavailablePdfiumBackend : PdfiumBackend {
             xfa = false,
         )
 
-    override fun initialize() = Unit
+    override suspend fun initialize() = Unit
 
     override fun destroy() = Unit
 

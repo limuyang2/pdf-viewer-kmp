@@ -24,7 +24,7 @@ import io.github.limuyang2.pdf.core.PdfTextRange
 internal interface PdfiumBackend {
     val capabilities: PdfCapabilities
 
-    fun initialize()
+    suspend fun initialize()
 
     fun destroy()
 

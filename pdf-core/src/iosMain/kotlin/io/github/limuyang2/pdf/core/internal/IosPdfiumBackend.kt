@@ -83,7 +83,7 @@ internal object IosPdfiumBackend : PdfiumBackend {
             xfa = false,
         )
 
-    override fun initialize() {
+    override suspend fun initialize() {
         check(pdfv_get_abi_version() == PDFV_ABI_VERSION) {
             "The bundled PDF viewer native bridge has an incompatible ABI"
         }

@@ -41,6 +41,8 @@ internal class FakePdfiumBackend(
 
     var openFailure: Throwable? = null
     var closeFailure: Throwable? = null
+    var initializeFailure: Throwable? = null
+    var initializeBlock: (suspend () -> Unit)? = null
     var initializeCount: Int = 0
     var destroyCount: Int = 0
     var openCount: Int = 0
@@ -55,8 +57,10 @@ internal class FakePdfiumBackend(
     var maximumActiveOperationCount: Int = 0
         private set
 
-    override fun initialize() {
+    override suspend fun initialize() {
         initializeCount += 1
+        initializeBlock?.invoke()
+        initializeFailure?.let { throw it }
     }
 
     override fun destroy() {

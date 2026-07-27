@@ -40,7 +40,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
             xfa = false,
         )
 
-    override fun initialize() {
+    override suspend fun initialize() {
         AndroidPdfiumNative.nativeInitialize()
     }
 

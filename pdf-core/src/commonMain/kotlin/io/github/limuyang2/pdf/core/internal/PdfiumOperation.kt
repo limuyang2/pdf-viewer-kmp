@@ -8,7 +8,7 @@ import kotlin.coroutines.coroutineContext
 internal object PdfiumOperation {
     suspend fun <T> execute(
         onCancelled: (T) -> Unit = {},
-        operation: () -> T,
+        operation: suspend () -> T,
     ): T {
         val callerContext = coroutineContext
         callerContext.ensureActive()
@@ -36,7 +36,7 @@ internal object PdfiumOperation {
 
     suspend fun closeAndAwait(operation: () -> Unit) {
         withContext(NonCancellable) {
-            PdfiumCallGate.call(operation)
+            PdfiumCallGate.call { operation() }
         }
     }
 }

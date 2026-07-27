@@ -9,7 +9,7 @@ internal object PdfiumRuntime {
     private var activeBackend: PdfiumBackend? = null
     private var referenceCount: Int = 0
 
-    fun acquire(backend: PdfiumBackend) {
+    suspend fun acquire(backend: PdfiumBackend) {
         val active = activeBackend
         check(active == null || active === backend) {
             "Cannot replace the PDFium backend while documents are open"

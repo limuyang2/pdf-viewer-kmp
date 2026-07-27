@@ -1,15 +1,19 @@
 package io.github.limuyang2.pdf.core.internal
 
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 private val pdfiumMutex = Mutex()
 
 internal actual suspend fun <T> platformPdfiumCall(
-    operation: () -> T,
+    operation: suspend () -> T,
 ): T =
-    pdfiumMutex.withLock {
-        operation()
+    run {
+        pdfiumMutex.lock()
+        try {
+            operation()
+        } finally {
+            pdfiumMutex.unlock()
+        }
     }
 
 internal actual fun platformPdfiumClose(operation: () -> Unit) {
