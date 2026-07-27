@@ -632,7 +632,7 @@ git commit -m "feat: render and extract PDF text on JVM"
 **Files:**
 - Modify: `scripts/pdfium-web/pdfium-adapter.js`
 - Regenerate: `pdf-core/src/webMain/resources/pdfium/pdfium-adapter.js`
-- Create: `pdf-core/src/webTest/kotlin/io/github/limuyang2/pdf/core/internal/WebPdfiumAdapterContract.kt`
+- Create: `scripts/tests/pdfium-web-adapter-test.mjs`
 
 **Interfaces:**
 - Produces adapter methods:
@@ -640,32 +640,37 @@ git commit -m "feat: render and extract PDF text on JVM"
   `pageLabel`, `pageInfo`, `render`, `extractText`,
   `debugAllocationCounts`
 
-- [ ] **Step 1: Add a failing browser adapter contract**
+- [ ] **Step 1: Add a failing JavaScript adapter contract**
 
-Define the pure-Kotlin expected adapter result shapes now:
+Load `pdfium-adapter.js` in a Node `vm` context containing a fake namespaced
+PDFium module factory. The fake module implements the exact `_malloc`,
+`_free`, document, page, bitmap, metadata, label, and text functions used by
+the adapter.
 
-```kotlin
-internal data class WebOpenResult(
-    val handle: Long,
-    val pageCount: Int,
-    val pdfiumError: Int,
-)
+Assert the adapter result shapes and ownership counters:
 
-internal data class WebRenderResult(
-    val width: Int,
-    val height: Int,
-    val stride: Int,
-    val pixels: ByteArray,
-)
+```javascript
+assert.deepEqual(opened, {
+  handle: 1,
+  pageCount: 1,
+  pdfiumError: 0
+});
+assert.equal(rendered.pixels.length, rendered.width * rendered.height * 4);
+assert.deepEqual(adapter.debugAllocationCounts(), {
+  documents: 1,
+  nativeAllocations: 1
+});
+adapter.close(opened.handle);
+assert.deepEqual(adapter.debugAllocationCounts(), {
+  documents: 0,
+  nativeAllocations: 0
+});
 ```
 
-The contract verifies allocation counts are zero before open, one retained
-source while open, and zero after close.
-
-- [ ] **Step 2: Run JS browser tests and verify failure**
+- [ ] **Step 2: Run the adapter contract and verify failure**
 
 ```bash
-./gradlew :pdf-core:jsBrowserTest
+node scripts/tests/pdfium-web-adapter-test.mjs
 ```
 
 Expected: FAIL because the adapter has only initialization methods.
@@ -694,14 +699,15 @@ Use `_FPDFBitmap_CreateEx` over adapter-allocated memory, fill and render,
 copy with `HEAPU8.slice`, and unconditionally destroy bitmap/page and free
 temporary memory.
 
-- [ ] **Step 6: Regenerate resources and run adapter browser tests**
+- [ ] **Step 6: Regenerate resources and run adapter tests**
 
 ```bash
 export https_proxy=http://127.0.0.1:7890
 export http_proxy=http://127.0.0.1:7890
 export all_proxy=socks5://127.0.0.1:7891
 ./scripts/update-pdfium.sh chromium/7961
-./gradlew :pdf-core:jsBrowserTest
+node scripts/tests/pdfium-web-adapter-test.mjs
+node --check pdf-core/src/webMain/resources/pdfium/pdfium-adapter.js
 ```
 
 Expected: adapter contract passes with zero leaked allocations.
@@ -709,7 +715,7 @@ Expected: adapter contract passes with zero leaked allocations.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add scripts/pdfium-web pdf-core/src/webMain/resources pdf-core/src/webTest
+git add scripts/pdfium-web scripts/tests pdf-core/src/webMain/resources
 git commit -m "feat: add browser PDFium adapter"
 ```
 
@@ -733,7 +739,8 @@ git commit -m "feat: add browser PDFium adapter"
 - [ ] **Step 1: Add failing JS real-backend tests**
 
 Use contract fixtures to verify open, password mapping, information, metadata,
-page labels, page information, rendering, text extraction, and close.
+page labels, page information, rendering, text extraction, and close. Also
+verify adapter allocation counts return to zero after the final close.
 
 - [ ] **Step 2: Run JS browser tests and verify unavailable-backend failure**
 
@@ -925,6 +932,9 @@ Expected: PASS.
 - [ ] **Step 5: Run native core verification**
 
 ```bash
+openssl base64 -d \
+  -in pdf-core/src/commonTest/resources/pdf-contract/hello_world.pdf.base64 \
+  -out /tmp/pdfviewer-hello-world.pdf
 cmake \
   -S pdf-core-native \
   -B /tmp/pdf-core-native-build \
