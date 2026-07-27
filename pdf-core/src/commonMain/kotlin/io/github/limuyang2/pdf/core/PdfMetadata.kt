@@ -1,6 +1,6 @@
 package io.github.limuyang2.pdf.core
 
-public data class PdfVersion(
+data class PdfVersion(
     val major: Int,
     val minor: Int,
 ) {
@@ -12,7 +12,7 @@ public data class PdfVersion(
     override fun toString(): String = "$major.$minor"
 }
 
-public data class PdfDocumentInfo(
+data class PdfDocumentInfo(
     val version: PdfVersion?,
     val permissions: PdfPermissions,
     val securityRevision: Int?,
@@ -26,7 +26,7 @@ public data class PdfDocumentInfo(
  * PDF date values are intentionally left unparsed because malformed and
  * partially specified PDF date strings are common.
  */
-public data class PdfMetadata(
+data class PdfMetadata(
     val title: String?,
     val author: String?,
     val subject: String?,

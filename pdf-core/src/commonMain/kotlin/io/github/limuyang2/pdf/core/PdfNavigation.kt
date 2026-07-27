@@ -1,6 +1,6 @@
 package io.github.limuyang2.pdf.core
 
-public data class PdfDestination(
+data class PdfDestination(
     val pageIndex: Int,
     val view: PdfDestinationView,
 ) {
@@ -9,8 +9,8 @@ public data class PdfDestination(
     }
 }
 
-public sealed interface PdfDestinationView {
-    public data class Unknown(
+sealed interface PdfDestinationView {
+    data class Unknown(
         val nativeViewMode: Int,
         val parameters: List<Double>,
     ) : PdfDestinationView {
@@ -27,7 +27,7 @@ public sealed interface PdfDestinationView {
         }
     }
 
-    public data class Xyz(
+    data class Xyz(
         val x: Double?,
         val y: Double?,
         val zoom: Double?,
@@ -45,9 +45,9 @@ public sealed interface PdfDestinationView {
         }
     }
 
-    public data object FitPage : PdfDestinationView
+    data object FitPage : PdfDestinationView
 
-    public data class FitHorizontally(
+    data class FitHorizontally(
         val top: Double?,
     ) : PdfDestinationView {
         init {
@@ -57,7 +57,7 @@ public sealed interface PdfDestinationView {
         }
     }
 
-    public data class FitVertically(
+    data class FitVertically(
         val left: Double?,
     ) : PdfDestinationView {
         init {
@@ -67,13 +67,13 @@ public sealed interface PdfDestinationView {
         }
     }
 
-    public data class FitRectangle(
+    data class FitRectangle(
         val bounds: PdfRect,
     ) : PdfDestinationView
 
-    public data object FitBoundingBox : PdfDestinationView
+    data object FitBoundingBox : PdfDestinationView
 
-    public data class FitBoundingBoxHorizontally(
+    data class FitBoundingBoxHorizontally(
         val top: Double?,
     ) : PdfDestinationView {
         init {
@@ -83,7 +83,7 @@ public sealed interface PdfDestinationView {
         }
     }
 
-    public data class FitBoundingBoxVertically(
+    data class FitBoundingBoxVertically(
         val left: Double?,
     ) : PdfDestinationView {
         init {
@@ -94,12 +94,12 @@ public sealed interface PdfDestinationView {
     }
 }
 
-public sealed interface PdfLinkTarget {
+sealed interface PdfLinkTarget {
     data class Internal(
         val destination: PdfDestination,
     ) : PdfLinkTarget
 
-    public data class Uri(
+    data class Uri(
         val uri: String,
     ) : PdfLinkTarget {
         init {
@@ -107,22 +107,22 @@ public sealed interface PdfLinkTarget {
         }
     }
 
-    public data class RemoteDocument(
+    data class RemoteDocument(
         val filePath: String?,
         val destination: PdfDestination?,
     ) : PdfLinkTarget
 
-    public data class Unsupported(
+    data class Unsupported(
         val nativeActionType: Int,
     ) : PdfLinkTarget
 }
 
-public data class PdfLink(
+data class PdfLink(
     val bounds: List<PdfQuad>,
     val target: PdfLinkTarget,
 )
 
-public data class PdfBookmark(
+data class PdfBookmark(
     val title: String,
     val destination: PdfDestination?,
     val target: PdfLinkTarget?,

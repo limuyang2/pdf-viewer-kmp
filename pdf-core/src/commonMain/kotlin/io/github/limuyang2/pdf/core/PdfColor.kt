@@ -6,24 +6,24 @@ import kotlin.jvm.JvmInline
  * A non-premultiplied ARGB color encoded as `0xAARRGGBB`.
  */
 @JvmInline
-public value class PdfColor(
-    public val argb: UInt,
+value class PdfColor(
+    val argb: UInt,
 ) {
-    public val alpha: UByte
+    val alpha: UByte
         get() = (argb shr 24).toUByte()
 
-    public val red: UByte
+    val red: UByte
         get() = (argb shr 16).toUByte()
 
-    public val green: UByte
+    val green: UByte
         get() = (argb shr 8).toUByte()
 
-    public val blue: UByte
+    val blue: UByte
         get() = argb.toUByte()
 
-    public companion object {
-        public val Transparent: PdfColor = PdfColor(0x00000000u)
-        public val White: PdfColor = PdfColor(0xFFFFFFFFu)
-        public val Black: PdfColor = PdfColor(0xFF000000u)
+    companion object {
+        val Transparent: PdfColor = PdfColor(0x00000000u)
+        val White: PdfColor = PdfColor(0xFFFFFFFFu)
+        val Black: PdfColor = PdfColor(0xFF000000u)
     }
 }

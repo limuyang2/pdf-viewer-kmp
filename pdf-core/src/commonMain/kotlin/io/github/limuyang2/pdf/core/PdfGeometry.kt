@@ -3,7 +3,7 @@ package io.github.limuyang2.pdf.core
 /**
  * A point in PDF page space. Values are measured in PDF points.
  */
-public data class PdfPoint(
+data class PdfPoint(
     val x: Double,
     val y: Double,
 ) {
@@ -16,7 +16,7 @@ public data class PdfPoint(
 /**
  * A size measured in PDF points.
  */
-public data class PdfSize(
+data class PdfSize(
     val width: Double,
     val height: Double,
 ) {
@@ -33,7 +33,7 @@ public data class PdfSize(
 /**
  * A rectangle in PDF page space, whose origin is at the bottom-left.
  */
-public data class PdfRect(
+data class PdfRect(
     val left: Double,
     val bottom: Double,
     val right: Double,
@@ -48,21 +48,21 @@ public data class PdfRect(
         require(top >= bottom) { "top must not be less than bottom" }
     }
 
-    public val width: Double
+    val width: Double
         get() = right - left
 
-    public val height: Double
+    val height: Double
         get() = top - bottom
 }
 
-public data class PdfQuad(
+data class PdfQuad(
     val first: PdfPoint,
     val second: PdfPoint,
     val third: PdfPoint,
     val fourth: PdfPoint,
 )
 
-public data class PdfPixelSize(
+data class PdfPixelSize(
     val width: Int,
     val height: Int,
 ) {
@@ -72,8 +72,8 @@ public data class PdfPixelSize(
     }
 }
 
-public enum class PdfRotation(
-    public val degrees: Int,
+enum class PdfRotation(
+    val degrees: Int,
 ) {
     Degrees0(0),
     Degrees90(90),
@@ -81,7 +81,7 @@ public enum class PdfRotation(
     Degrees270(270),
     ;
 
-    public companion object {
+    companion object {
         fun fromDegrees(degrees: Int): PdfRotation =
             when (degrees) {
                 0 -> Degrees0
@@ -95,7 +95,7 @@ public enum class PdfRotation(
     }
 }
 
-public data class PdfPageInfo(
+data class PdfPageInfo(
     val size: PdfSize,
     val rotation: PdfRotation,
     val boundingBox: PdfRect?,

@@ -1,6 +1,6 @@
 package io.github.limuyang2.pdf.core
 
-public data class PdfPermissions(
+data class PdfPermissions(
     val canPrint: Boolean,
     val canModify: Boolean,
     val canCopy: Boolean,

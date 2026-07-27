@@ -1,6 +1,6 @@
 package io.github.limuyang2.pdf.core
 
-public data class PdfRenderRequest(
+data class PdfRenderRequest(
     val outputSize: PdfPixelSize,
     val sourceRect: PdfRect? = null,
     val rotation: PdfRotation = PdfRotation.Degrees0,
@@ -10,12 +10,12 @@ public data class PdfRenderRequest(
     val optimizeTextForLcd: Boolean = false,
 )
 
-public interface PdfBitmap : AutoCloseable {
-    public val width: Int
-    public val height: Int
-    public val stride: Int
-    public val format: PdfPixelFormat
-    public val isClosed: Boolean
+interface PdfBitmap : AutoCloseable {
+    val width: Int
+    val height: Int
+    val stride: Int
+    val format: PdfPixelFormat
+    val isClosed: Boolean
 
     fun copyPixels(): ByteArray
 
@@ -27,8 +27,8 @@ public interface PdfBitmap : AutoCloseable {
     override fun close()
 }
 
-public enum class PdfPixelFormat(
-    public val bytesPerPixel: Int,
+enum class PdfPixelFormat(
+    val bytesPerPixel: Int,
 ) {
     Bgra8888(4),
     Bgrx8888(4),

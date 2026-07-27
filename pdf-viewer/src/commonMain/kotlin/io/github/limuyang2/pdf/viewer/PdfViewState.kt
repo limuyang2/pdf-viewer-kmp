@@ -16,15 +16,15 @@ import io.github.limuyang2.pdf.core.PdfDocument
  * Scroll, zoom, and render-cache state for [PdfView].
  */
 @Stable
-public class PdfViewState internal constructor(
-    public val listState: LazyListState,
-    public val horizontalScrollState: ScrollState,
+class PdfViewState internal constructor(
+    val listState: LazyListState,
+    val horizontalScrollState: ScrollState,
     initialZoom: Float,
 ) {
-    public var zoom: Float by mutableFloatStateOf(validateZoom(initialZoom))
+    var zoom: Float by mutableFloatStateOf(validateZoom(initialZoom))
         private set
 
-    public val currentPage: Int
+    val currentPage: Int
         get() = listState.firstVisibleItemIndex
 
     private var cachedDocument: PdfDocument? = null

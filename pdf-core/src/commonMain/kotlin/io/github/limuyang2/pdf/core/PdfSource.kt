@@ -6,15 +6,15 @@ package io.github.limuyang2.pdf.core
  * Ownership transfers as soon as `open()` is called. The source is closed
  * after an open failure, cancellation, or closure of the resulting document.
  */
-public sealed interface PdfSource : AutoCloseable {
+sealed interface PdfSource : AutoCloseable {
     /**
      * A memory-backed PDF source.
      *
      * The document retains [data] until it is closed. Callers must not mutate
      * the array while the document is open.
      */
-    public class Bytes(
-        public val data: ByteArray,
+    class Bytes(
+        val data: ByteArray,
     ) : PdfSource {
         override fun close() = Unit
     }
@@ -25,8 +25,8 @@ public sealed interface PdfSource : AutoCloseable {
      * Implementations must fill every requested range and must not call back
      * into [PdfViewer] from [read].
      */
-    public interface RandomAccess : PdfSource {
-        public val size: Long
+    interface RandomAccess : PdfSource {
+        val size: Long
 
         fun read(
             offset: Long,

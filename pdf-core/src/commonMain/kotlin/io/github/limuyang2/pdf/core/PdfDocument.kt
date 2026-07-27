@@ -13,10 +13,10 @@ import io.github.limuyang2.pdf.core.internal.PdfiumBackend
 class PdfDocument internal constructor(
     internal val state: PdfDocumentState,
 ) : AutoCloseable {
-    public val pageCount: Int
+    val pageCount: Int
         get() = state.pageCount
 
-    public val isClosed: Boolean
+    val isClosed: Boolean
         get() = state.isClosed
 
     operator fun get(pageIndex: Int): PdfPage {

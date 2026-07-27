@@ -9,8 +9,8 @@ import io.github.limuyang2.pdf.core.internal.PdfiumRuntime
 /**
  * Process-wide entry point for opening PDF documents.
  */
-public object PdfViewer {
-    public val capabilities: PdfCapabilities
+object PdfViewer {
+    val capabilities: PdfCapabilities
         get() = PdfiumBackendProvider.backend.capabilities
 
     /**

@@ -3,7 +3,7 @@ package io.github.limuyang2.pdf.core
 /**
  * A range using PDFium character indexes, not Kotlin string indexes.
  */
-public data class PdfTextRange(
+data class PdfTextRange(
     val startCharacterIndex: Int,
     val characterCount: Int,
 ) {
@@ -17,11 +17,11 @@ public data class PdfTextRange(
         }
     }
 
-    public val endCharacterIndexExclusive: Int
+    val endCharacterIndexExclusive: Int
         get() = startCharacterIndex + characterCount
 }
 
-public data class PdfCharacter(
+data class PdfCharacter(
     val characterIndex: Int,
     val unicodeCodePoint: Int,
     val bounds: PdfRect?,
@@ -46,14 +46,14 @@ public data class PdfCharacter(
     }
 }
 
-public class PdfTextLayout internal constructor(
-    public val text: String,
+class PdfTextLayout internal constructor(
+    val text: String,
     characters: List<PdfCharacter>,
     private val rangeBounds: (PdfTextRange) -> List<PdfRect>,
 ) {
     private val characters: List<PdfCharacter> = characters.toList()
 
-    public val characterCount: Int
+    val characterCount: Int
         get() = characters.size
 
     operator fun get(characterIndex: Int): PdfCharacter =
@@ -67,13 +67,13 @@ public class PdfTextLayout internal constructor(
     }
 }
 
-public data class PdfSearchOptions(
+data class PdfSearchOptions(
     val matchCase: Boolean = false,
     val matchWholeWord: Boolean = false,
     val consecutive: Boolean = false,
 )
 
-public data class PdfSearchMatch(
+data class PdfSearchMatch(
     val range: PdfTextRange,
     val bounds: List<PdfRect>,
 )

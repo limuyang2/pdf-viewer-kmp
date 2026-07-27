@@ -6,7 +6,7 @@ package io.github.limuyang2.pdf.core
  * A capability can be available in PDFium before it is exposed by the current
  * public API version.
  */
-public data class PdfCapabilities(
+data class PdfCapabilities(
     val text: Boolean,
     val search: Boolean,
     val bookmarks: Boolean,

@@ -3,9 +3,9 @@ package io.github.limuyang2.pdf.core
 /**
  * Lightweight page descriptor. It does not keep a native PDFium page open.
  */
-public class PdfPage internal constructor(
-    public val document: PdfDocument,
-    public val index: Int,
+class PdfPage internal constructor(
+    val document: PdfDocument,
+    val index: Int,
 ) {
     suspend fun information(): PdfPageInfo =
         document.withOpenDocument { backend, handle ->
