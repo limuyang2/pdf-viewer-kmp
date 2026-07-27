@@ -30,3 +30,4 @@ xcuserdata/
 **/xcshareddata/WorkspaceSettings.xcsettings
 
 # kotlin-js-store is intentionally tracked for reproducible JS/Wasm installs.
+/RepoDir

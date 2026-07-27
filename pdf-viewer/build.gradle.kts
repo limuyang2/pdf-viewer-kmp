@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    `maven-publish`
+    signing
 }
 
 kotlin {
@@ -52,3 +54,15 @@ kotlin {
         }
     }
 }
+
+val libraryGroup = "io.github.limuyang2"
+val libraryVersion = "0.1.0"
+
+extra["publicationGroup"] = libraryGroup
+extra["publicationVersion"] = libraryVersion
+extra["publicationArtifactId"] = "pdf-viewer"
+extra["publicationName"] = "PDF Viewer"
+extra["publicationDescription"] =
+    "A Compose Multiplatform PDF viewer built on PDF Core."
+
+apply(from = rootProject.file("gradle/publishing.gradle.kts"))

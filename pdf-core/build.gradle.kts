@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.androidLint)
+    `maven-publish`
+    signing
 }
 
 kotlin {
@@ -185,3 +187,15 @@ kotlin {
         }
     }
 }
+
+val libraryGroup = "io.github.limuyang2"
+val libraryVersion = "0.1.0"
+
+extra["publicationGroup"] = libraryGroup
+extra["publicationVersion"] = libraryVersion
+extra["publicationArtifactId"] = "pdf-core"
+extra["publicationName"] = "PDF Core"
+extra["publicationDescription"] =
+    "A Kotlin Multiplatform PDF document and rendering library backed by PDFium."
+
+apply(from = rootProject.file("gradle/publishing.gradle.kts"))
