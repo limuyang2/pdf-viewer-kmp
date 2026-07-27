@@ -59,6 +59,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Displays every page in [document] as a vertically scrolling Compose view.
@@ -212,7 +213,7 @@ fun PdfView(
                 ),
     ) {
         if (viewportWidthPixels == 0) {
-            Box(Modifier.fillMaxSize())
+            Box(Modifier.matchParentSize())
             return@Box
         }
 
@@ -240,7 +241,7 @@ fun PdfView(
                 !transformInProgress &&
                 settledRenderWidthPixels != requestedRenderWidthPixels
             ) {
-                delay(RENDER_SETTLE_DELAY_MILLIS)
+                delay(RENDER_SETTLE_DELAY_MILLIS.milliseconds)
                 settledRenderWidthPixels = requestedRenderWidthPixels
             }
         }
@@ -764,6 +765,6 @@ private sealed interface PdfPageInformationState {
 }
 
 private const val RENDER_WIDTH_QUANTUM: Int = 128
-private const val RENDER_SETTLE_DELAY_MILLIS: Long = 150
+private const val RENDER_SETTLE_DELAY_MILLIS: Long = 100
 private const val MIN_TRANSFORM_POINTERS: Int = 2
 private const val DEFAULT_PAGE_ASPECT_RATIO: Float = 0.707f
