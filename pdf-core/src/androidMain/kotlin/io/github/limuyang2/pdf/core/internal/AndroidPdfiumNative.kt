@@ -51,4 +51,17 @@ internal object AndroidPdfiumNative {
         startCharacterIndex: Int,
         characterCount: Int,
     ): String?
+
+    external fun nativeLinks(
+        handle: Long,
+        pageIndex: Int,
+    ): Array<AndroidNativePdfLink>?
 }
+
+internal data class AndroidNativePdfLink(
+    val bounds: DoubleArray,
+    val targetType: Int,
+    val nativeActionType: Int,
+    val destination: DoubleArray,
+    val valueUtf8: ByteArray?,
+)

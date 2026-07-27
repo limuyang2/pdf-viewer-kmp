@@ -119,6 +119,54 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                 startCharacterIndex,
                 characterCount,
             ) as String?
+
+        override fun links(
+            handle: Int,
+            pageIndex: Int,
+        ): List<WebPdfLink>? {
+            val result = adapter().links(handle, pageIndex) ?: return null
+            return List(result.count as Int) { index ->
+                val link = result.link(index)
+                WebPdfLink(
+                    bounds =
+                        List(link.boundCount as Int) { boundIndex ->
+                            val quad = link.bound(boundIndex)
+                            WebPdfQuad(
+                                x1 = (quad.x1 as Number).toDouble(),
+                                y1 = (quad.y1 as Number).toDouble(),
+                                x2 = (quad.x2 as Number).toDouble(),
+                                y2 = (quad.y2 as Number).toDouble(),
+                                x3 = (quad.x3 as Number).toDouble(),
+                                y3 = (quad.y3 as Number).toDouble(),
+                                x4 = (quad.x4 as Number).toDouble(),
+                                y4 = (quad.y4 as Number).toDouble(),
+                            )
+                        },
+                    targetType = link.targetType as Int,
+                    actionType = link.actionType as Int,
+                    destination =
+                        link.destination?.let { destination ->
+                            val parameters = destination.parameters
+                            WebPdfDestination(
+                                pageIndex = destination.pageIndex as Int,
+                                viewMode = destination.viewMode as Int,
+                                parameters =
+                                    List(parameters.length as Int) {
+                                        (parameters[it] as Number).toDouble()
+                                    },
+                                hasX = destination.hasX as Boolean,
+                                x = (destination.x as Number).toDouble(),
+                                hasY = destination.hasY as Boolean,
+                                y = (destination.y as Number).toDouble(),
+                                hasZoom = destination.hasZoom as Boolean,
+                                zoom =
+                                    (destination.zoom as Number).toDouble(),
+                            )
+                        },
+                    value = link.value as String?,
+                )
+            }
+        }
     }
 
 private suspend fun loadAdapter() {

@@ -8,6 +8,7 @@ import io.github.limuyang2.pdf.core.PdfIncorrectPasswordException
 import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfIoException
 import io.github.limuyang2.pdf.core.PdfLink
+import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfMetadata
 import io.github.limuyang2.pdf.core.PdfNativeException
 import io.github.limuyang2.pdf.core.PdfPageException
@@ -15,6 +16,8 @@ import io.github.limuyang2.pdf.core.PdfPageInfo
 import io.github.limuyang2.pdf.core.PdfPasswordRequiredException
 import io.github.limuyang2.pdf.core.PdfPermissions
 import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfPoint
+import io.github.limuyang2.pdf.core.PdfQuad
 import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
@@ -38,7 +41,7 @@ internal object WebPdfiumBackend : PdfiumBackend {
             text = true,
             search = false,
             bookmarks = false,
-            links = false,
+            links = true,
             thumbnails = false,
             progressiveLoading = false,
             progressiveRendering = false,
@@ -227,7 +230,58 @@ internal object WebPdfiumBackend : PdfiumBackend {
     override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
-    ): List<PdfLink> = unsupported("links in browsers")
+    ): List<PdfLink> =
+        platformWebPdfiumInterop
+            .links(document.webHandle(), pageIndex)
+            ?.map { link ->
+                val destination =
+                    link.destination?.let {
+                        check(it.pageIndex >= 0) {
+                            "PDFium returned an invalid destination page"
+                        }
+                        pdfDestination(
+                            pageIndex = it.pageIndex,
+                            viewMode = it.viewMode,
+                            parameters = it.parameters,
+                            hasX = it.hasX,
+                            x = it.x,
+                            hasY = it.hasY,
+                            y = it.y,
+                            hasZoom = it.hasZoom,
+                            zoom = it.zoom,
+                        )
+                    }
+                PdfLink(
+                    bounds =
+                        link.bounds.map {
+                            PdfQuad(
+                                PdfPoint(it.x1, it.y1),
+                                PdfPoint(it.x2, it.y2),
+                                PdfPoint(it.x3, it.y3),
+                                PdfPoint(it.x4, it.y4),
+                            )
+                        },
+                    target =
+                        when (link.targetType) {
+                            PDF_LINK_TARGET_INTERNAL ->
+                                PdfLinkTarget.Internal(
+                                    checkNotNull(destination),
+                                )
+                            PDF_LINK_TARGET_URI ->
+                                PdfLinkTarget.Uri(
+                                    checkNotNull(link.value),
+                                )
+                            PDF_LINK_TARGET_REMOTE_DOCUMENT ->
+                                PdfLinkTarget.RemoteDocument(
+                                    link.value,
+                                    destination,
+                                )
+                            else ->
+                                PdfLinkTarget.Unsupported(link.actionType)
+                        },
+                )
+            }
+            ?: throw PdfPageException(pageIndex)
 
     private fun NativeDocumentHandle.webHandle(): Int {
         check(value in 1..Int.MAX_VALUE.toLong()) {

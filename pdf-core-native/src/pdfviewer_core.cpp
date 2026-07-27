@@ -1,8 +1,10 @@
 #include "pdfviewer_core.h"
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <new>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -101,6 +103,130 @@ pdfv_status_t RequireDocument(pdfv_document_t* document) {
 
 bool FitsUtf16ByteCount(size_t units) {
   return units <= std::numeric_limits<unsigned long>::max() / 2;
+}
+
+struct CollectedLink {
+  pdfv_link_t link{};
+  std::vector<pdfv_quad_t> quads;
+  std::string string;
+};
+
+void ReadDestination(FPDF_DOCUMENT document,
+                     FPDF_DEST destination,
+                     pdfv_destination_t* result) {
+  *result = {};
+  result->page_index = FPDFDest_GetDestPageIndex(document, destination);
+  unsigned long parameter_count = 0;
+  FS_FLOAT parameters[4] = {};
+  result->view_mode =
+      static_cast<uint32_t>(
+          FPDFDest_GetView(destination, &parameter_count, parameters));
+  result->parameter_count =
+      static_cast<uint32_t>(std::min<unsigned long>(parameter_count, 4));
+  for (uint32_t index = 0; index < result->parameter_count; ++index) {
+    result->parameters[index] = parameters[index];
+  }
+
+  FPDF_BOOL has_x = 0;
+  FPDF_BOOL has_y = 0;
+  FPDF_BOOL has_zoom = 0;
+  FS_FLOAT x = 0;
+  FS_FLOAT y = 0;
+  FS_FLOAT zoom = 0;
+  if (FPDFDest_GetLocationInPage(destination, &has_x, &has_y, &has_zoom,
+                                 &x, &y, &zoom)) {
+    result->has_x = has_x;
+    result->has_y = has_y;
+    result->has_zoom = has_zoom;
+    result->x = x;
+    result->y = y;
+    result->zoom = zoom;
+  }
+}
+
+template <typename Read>
+std::string ReadUtf8(Read read) {
+  const unsigned long required_bytes = read(nullptr, 0);
+  if (required_bytes <= 1) {
+    return {};
+  }
+  std::vector<char> buffer(required_bytes);
+  if (read(buffer.data(), required_bytes) != required_bytes) {
+    return {};
+  }
+  return std::string(buffer.data(), required_bytes - 1);
+}
+
+std::vector<pdfv_quad_t> ReadLinkQuads(FPDF_LINK link) {
+  std::vector<pdfv_quad_t> result;
+  const int quad_count = FPDFLink_CountQuadPoints(link);
+  if (quad_count > 0) {
+    result.reserve(static_cast<size_t>(quad_count));
+    for (int index = 0; index < quad_count; ++index) {
+      FS_QUADPOINTSF value{};
+      if (FPDFLink_GetQuadPoints(link, index, &value)) {
+        result.push_back(
+            {value.x1, value.y1, value.x2, value.y2, value.x3, value.y3,
+             value.x4, value.y4});
+      }
+    }
+  }
+  if (result.empty()) {
+    FS_RECTF rect{};
+    if (FPDFLink_GetAnnotRect(link, &rect)) {
+      result.push_back(
+          {rect.left, rect.top, rect.right, rect.top, rect.left, rect.bottom,
+           rect.right, rect.bottom});
+    }
+  }
+  return result;
+}
+
+CollectedLink ReadLink(FPDF_DOCUMENT document, FPDF_LINK link) {
+  CollectedLink result;
+  result.quads = ReadLinkQuads(link);
+
+  FPDF_DEST destination = FPDFLink_GetDest(document, link);
+  if (destination) {
+    result.link.target_type = PDFV_LINK_TARGET_INTERNAL;
+    ReadDestination(document, destination, &result.link.destination);
+    return result;
+  }
+
+  FPDF_ACTION action = FPDFLink_GetAction(link);
+  const unsigned long action_type =
+      action ? FPDFAction_GetType(action) : PDFACTION_UNSUPPORTED;
+  result.link.native_action_type = static_cast<uint32_t>(action_type);
+  switch (action_type) {
+    case PDFACTION_GOTO:
+      destination = FPDFAction_GetDest(document, action);
+      if (destination) {
+        result.link.target_type = PDFV_LINK_TARGET_INTERNAL;
+        ReadDestination(document, destination, &result.link.destination);
+      } else {
+        result.link.target_type = PDFV_LINK_TARGET_UNSUPPORTED;
+      }
+      break;
+    case PDFACTION_URI:
+      result.link.target_type = PDFV_LINK_TARGET_URI;
+      result.string = ReadUtf8([&](void* buffer, unsigned long length) {
+        return FPDFAction_GetURIPath(document, action, buffer, length);
+      });
+      if (result.string.empty()) {
+        result.link.target_type = PDFV_LINK_TARGET_UNSUPPORTED;
+      }
+      break;
+    case PDFACTION_REMOTEGOTO:
+      result.link.target_type = PDFV_LINK_TARGET_REMOTE_DOCUMENT;
+      result.string = ReadUtf8([&](void* buffer, unsigned long length) {
+        return FPDFAction_GetFilePath(action, buffer, length);
+      });
+      break;
+    default:
+      result.link.target_type = PDFV_LINK_TARGET_UNSUPPORTED;
+      break;
+  }
+  return result;
 }
 
 template <typename Operation>
@@ -417,5 +543,85 @@ pdfv_status_t pdfv_extract_text_utf16(pdfv_document_t* document,
     const int written =
         FPDFText_GetText(text_page.get(), start_character_index, count, buffer);
     return written == count + 1 ? PDFV_OK : PDFV_ERROR_UNKNOWN;
+  });
+}
+
+pdfv_status_t pdfv_get_page_links(
+    pdfv_document_t* document,
+    int32_t page_index,
+    pdfv_link_t* links,
+    size_t link_capacity,
+    pdfv_quad_t* quads,
+    size_t quad_capacity,
+    char* strings_utf8,
+    size_t string_capacity,
+    size_t* required_links,
+    size_t* required_quads,
+    size_t* required_string_bytes) {
+  return Guard([&] {
+    if (RequireDocument(document) != PDFV_OK) {
+      return PDFV_ERROR_CLOSED;
+    }
+    if (!required_links || !required_quads || !required_string_bytes) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+
+    ScopedPage page(FPDF_LoadPage(document->handle, page_index));
+    if (!page.get()) {
+      return PDFV_ERROR_PAGE;
+    }
+    std::vector<CollectedLink> collected;
+    int position = 0;
+    FPDF_LINK link = nullptr;
+    while (FPDFLink_Enumerate(page.get(), &position, &link)) {
+      if (!link) {
+        return PDFV_ERROR_UNKNOWN;
+      }
+      collected.push_back(ReadLink(document->handle, link));
+    }
+
+    size_t total_quads = 0;
+    size_t total_string_bytes = 0;
+    for (const CollectedLink& item : collected) {
+      if (item.quads.size() >
+              std::numeric_limits<size_t>::max() - total_quads ||
+          item.string.size() >
+              std::numeric_limits<size_t>::max() - total_string_bytes) {
+        return PDFV_ERROR_OUT_OF_MEMORY;
+      }
+      total_quads += item.quads.size();
+      total_string_bytes += item.string.size();
+    }
+    *required_links = collected.size();
+    *required_quads = total_quads;
+    *required_string_bytes = total_string_bytes;
+
+    if (collected.empty()) {
+      return PDFV_OK;
+    }
+    if (!links || link_capacity < collected.size() ||
+        (total_quads > 0 && (!quads || quad_capacity < total_quads)) ||
+        (total_string_bytes > 0 &&
+         (!strings_utf8 || string_capacity < total_string_bytes))) {
+      return PDFV_ERROR_BUFFER_TOO_SMALL;
+    }
+
+    size_t quad_offset = 0;
+    size_t string_offset = 0;
+    for (size_t index = 0; index < collected.size(); ++index) {
+      CollectedLink& item = collected[index];
+      item.link.first_quad = quad_offset;
+      item.link.quad_count = item.quads.size();
+      item.link.string_offset = string_offset;
+      item.link.string_length = item.string.size();
+      links[index] = item.link;
+      for (const pdfv_quad_t& quad : item.quads) {
+        quads[quad_offset++] = quad;
+      }
+      for (char character : item.string) {
+        strings_utf8[string_offset++] = character;
+      }
+    }
+    return PDFV_OK;
   });
 }

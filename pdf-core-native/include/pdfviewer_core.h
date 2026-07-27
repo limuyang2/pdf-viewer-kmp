@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-#define PDFV_ABI_VERSION 1u
+#define PDFV_ABI_VERSION 2u
 
 typedef struct pdfv_document pdfv_document_t;
 
@@ -72,6 +72,47 @@ typedef struct pdfv_render_request {
   uint32_t flags;
 } pdfv_render_request_t;
 
+typedef enum pdfv_link_target_type {
+  PDFV_LINK_TARGET_INTERNAL = 1,
+  PDFV_LINK_TARGET_URI = 2,
+  PDFV_LINK_TARGET_REMOTE_DOCUMENT = 3,
+  PDFV_LINK_TARGET_UNSUPPORTED = 4,
+} pdfv_link_target_type_t;
+
+typedef struct pdfv_quad {
+  double x1;
+  double y1;
+  double x2;
+  double y2;
+  double x3;
+  double y3;
+  double x4;
+  double y4;
+} pdfv_quad_t;
+
+typedef struct pdfv_destination {
+  int32_t page_index;
+  uint32_t view_mode;
+  uint32_t parameter_count;
+  double parameters[4];
+  int32_t has_x;
+  int32_t has_y;
+  int32_t has_zoom;
+  double x;
+  double y;
+  double zoom;
+} pdfv_destination_t;
+
+typedef struct pdfv_link {
+  uint32_t target_type;
+  uint32_t native_action_type;
+  size_t first_quad;
+  size_t quad_count;
+  pdfv_destination_t destination;
+  size_t string_offset;
+  size_t string_length;
+} pdfv_link_t;
+
 PDFV_EXPORT uint32_t pdfv_get_abi_version(void);
 
 PDFV_EXPORT pdfv_status_t pdfv_initialize(void);
@@ -127,6 +168,22 @@ PDFV_EXPORT pdfv_status_t pdfv_extract_text_utf16(
     uint16_t* buffer,
     size_t buffer_units,
     size_t* required_units);
+
+// Call once with null output buffers to obtain required element counts, then
+// call again with buffers of at least those sizes. UTF-8 strings are packed
+// without trailing NUL bytes and referenced by each link's offset and length.
+PDFV_EXPORT pdfv_status_t pdfv_get_page_links(
+    pdfv_document_t* document,
+    int32_t page_index,
+    pdfv_link_t* links,
+    size_t link_capacity,
+    pdfv_quad_t* quads,
+    size_t quad_capacity,
+    char* strings_utf8,
+    size_t string_capacity,
+    size_t* required_links,
+    size_t* required_quads,
+    size_t* required_string_bytes);
 
 #ifdef __cplusplus
 }  // extern "C"

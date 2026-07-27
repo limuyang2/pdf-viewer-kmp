@@ -6,7 +6,10 @@ import com.sun.jna.Native
 import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
+import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
+import com.sun.jna.ptr.NativeLongByReference
+import com.sun.jna.ptr.PointerByReference
 
 internal class NativeSize(
     value: Long = 0,
@@ -22,6 +25,27 @@ internal class FsRectF : Structure() {
     @JvmField var top: Float = 0f
     @JvmField var right: Float = 0f
     @JvmField var bottom: Float = 0f
+}
+
+@Structure.FieldOrder(
+    "x1",
+    "y1",
+    "x2",
+    "y2",
+    "x3",
+    "y3",
+    "x4",
+    "y4",
+)
+internal class FsQuadPointsF : Structure() {
+    @JvmField var x1: Float = 0f
+    @JvmField var y1: Float = 0f
+    @JvmField var x2: Float = 0f
+    @JvmField var y2: Float = 0f
+    @JvmField var x3: Float = 0f
+    @JvmField var y3: Float = 0f
+    @JvmField var x4: Float = 0f
+    @JvmField var y4: Float = 0f
 }
 
 @Suppress("FunctionName")
@@ -126,5 +150,72 @@ internal interface JvmPdfiumLibrary : Library {
         startIndex: Int,
         count: Int,
         result: Pointer,
+    ): Int
+
+    fun FPDFLink_Enumerate(
+        page: Pointer,
+        startPosition: IntByReference,
+        link: PointerByReference,
+    ): Int
+
+    fun FPDFLink_GetAnnotRect(
+        link: Pointer,
+        rect: FsRectF,
+    ): Int
+
+    fun FPDFLink_CountQuadPoints(link: Pointer): Int
+
+    fun FPDFLink_GetQuadPoints(
+        link: Pointer,
+        quadIndex: Int,
+        quadPoints: FsQuadPointsF,
+    ): Int
+
+    fun FPDFLink_GetDest(
+        document: Pointer,
+        link: Pointer,
+    ): Pointer?
+
+    fun FPDFLink_GetAction(link: Pointer): Pointer?
+
+    fun FPDFAction_GetType(action: Pointer): NativeLong
+
+    fun FPDFAction_GetDest(
+        document: Pointer,
+        action: Pointer,
+    ): Pointer?
+
+    fun FPDFAction_GetFilePath(
+        action: Pointer,
+        buffer: Pointer?,
+        bufferLength: NativeLong,
+    ): NativeLong
+
+    fun FPDFAction_GetURIPath(
+        document: Pointer,
+        action: Pointer,
+        buffer: Pointer?,
+        bufferLength: NativeLong,
+    ): NativeLong
+
+    fun FPDFDest_GetDestPageIndex(
+        document: Pointer,
+        destination: Pointer,
+    ): Int
+
+    fun FPDFDest_GetView(
+        destination: Pointer,
+        parameterCount: NativeLongByReference,
+        parameters: Pointer,
+    ): NativeLong
+
+    fun FPDFDest_GetLocationInPage(
+        destination: Pointer,
+        hasX: IntByReference,
+        hasY: IntByReference,
+        hasZoom: IntByReference,
+        x: FloatByReference,
+        y: FloatByReference,
+        zoom: FloatByReference,
     ): Int
 }

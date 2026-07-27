@@ -28,6 +28,37 @@ internal data class WebPageBoundingBox(
     val top: Double,
 )
 
+internal data class WebPdfQuad(
+    val x1: Double,
+    val y1: Double,
+    val x2: Double,
+    val y2: Double,
+    val x3: Double,
+    val y3: Double,
+    val x4: Double,
+    val y4: Double,
+)
+
+internal data class WebPdfDestination(
+    val pageIndex: Int,
+    val viewMode: Int,
+    val parameters: List<Double>,
+    val hasX: Boolean,
+    val x: Double,
+    val hasY: Boolean,
+    val y: Double,
+    val hasZoom: Boolean,
+    val zoom: Double,
+)
+
+internal data class WebPdfLink(
+    val bounds: List<WebPdfQuad>,
+    val targetType: Int,
+    val actionType: Int,
+    val destination: WebPdfDestination?,
+    val value: String?,
+)
+
 internal interface WebPdfiumInterop {
     suspend fun initialize()
 
@@ -73,6 +104,11 @@ internal interface WebPdfiumInterop {
         startCharacterIndex: Int,
         characterCount: Int,
     ): String?
+
+    fun links(
+        handle: Int,
+        pageIndex: Int,
+    ): List<WebPdfLink>?
 }
 
 internal expect val platformWebPdfiumInterop: WebPdfiumInterop

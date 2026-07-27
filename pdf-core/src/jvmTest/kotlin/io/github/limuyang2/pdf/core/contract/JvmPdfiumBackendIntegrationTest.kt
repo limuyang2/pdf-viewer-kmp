@@ -1,6 +1,7 @@
 package io.github.limuyang2.pdf.core.contract
 
 import io.github.limuyang2.pdf.core.PdfIncorrectPasswordException
+import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
@@ -10,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class JvmPdfiumBackendIntegrationTest {
@@ -55,6 +57,29 @@ class JvmPdfiumBackendIntegrationTest {
                     source(PdfContractFixture.EncryptedUserPassword),
                     password = "wrong",
                 )
+            }
+        }
+
+    @Test
+    fun readsInternalAndUriLinks() =
+        runTest {
+            PdfViewer.open(source(PdfContractFixture.InternalLinks)).use { document ->
+                val links = document[0].links()
+                assertEquals(2, links.size)
+                assertEquals(
+                    0,
+                    assertIs<PdfLinkTarget.Internal>(links[0].target)
+                        .destination.pageIndex,
+                )
+                assertTrue(links[0].bounds.isNotEmpty())
+            }
+            PdfViewer.open(source(PdfContractFixture.UriLinks)).use { document ->
+                val link = document[0].links().single()
+                assertEquals(
+                    "https://example.com/page.html",
+                    assertIs<PdfLinkTarget.Uri>(link.target).uri,
+                )
+                assertTrue(link.bounds.isNotEmpty())
             }
         }
 

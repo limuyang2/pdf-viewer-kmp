@@ -62,6 +62,11 @@ dimension to 4096 pixels by default. Use `scrollToPage()`,
 `animateScrollToPage()`, `updateZoom()`, and `clearRenderCache()` for external
 controls.
 
+PDF link annotations are clickable. Internal destinations jump to their target
+page and URI actions open through the platform URI handler. Use `onLinkClick`
+to inspect or replace the default behavior; return `true` when the callback
+consumes the link.
+
 The caller owns the `PdfDocument` and must close it when the preview leaves the
 composition. `PdfView` closes its temporary `PdfBitmap` values but does not
 close the document.
@@ -238,12 +243,10 @@ All implemented backends support:
 - page count and document lifecycle;
 - page size, intrinsic rotation, and bounding box;
 - full-page BGRA8888 rendering, including background color, annotation,
-  grayscale, LCD text, and quarter-turn rotation options.
-
-The iOS, JVM, JavaScript, and Wasm backends additionally support:
-
+  grayscale, LCD text, and quarter-turn rotation options;
 - PDF version, permissions, metadata, and page labels;
-- basic page text extraction.
+- basic page text extraction;
+- internal page links, URI actions, and link annotation bounds.
 
 Use `PdfViewer.capabilities` to inspect optional backend features at runtime.
 
@@ -256,9 +259,8 @@ The following features are not available yet:
 - random-access sources;
 - cropped or region rendering with `sourceRect`;
 - thumbnails;
-- Android document metadata and text extraction;
 - text layout, character geometry, and search;
-- links and bookmarks;
+- bookmarks;
 - forms, editing, progressive loading/rendering, JavaScript, and XFA.
 
 Calling an unavailable feature throws `PdfUnsupportedFeatureException`.

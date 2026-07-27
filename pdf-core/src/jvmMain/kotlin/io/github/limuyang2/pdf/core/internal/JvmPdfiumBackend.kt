@@ -3,7 +3,10 @@ package io.github.limuyang2.pdf.core.internal
 import com.sun.jna.Memory
 import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
+import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
+import com.sun.jna.ptr.NativeLongByReference
+import com.sun.jna.ptr.PointerByReference
 import io.github.limuyang2.pdf.core.PdfBitmap
 import io.github.limuyang2.pdf.core.PdfBookmark
 import io.github.limuyang2.pdf.core.PdfCapabilities
@@ -12,6 +15,7 @@ import io.github.limuyang2.pdf.core.PdfIncorrectPasswordException
 import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfIoException
 import io.github.limuyang2.pdf.core.PdfLink
+import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfMetadata
 import io.github.limuyang2.pdf.core.PdfNativeException
 import io.github.limuyang2.pdf.core.PdfPageException
@@ -19,6 +23,8 @@ import io.github.limuyang2.pdf.core.PdfPageInfo
 import io.github.limuyang2.pdf.core.PdfPasswordRequiredException
 import io.github.limuyang2.pdf.core.PdfPermissions
 import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfPoint
+import io.github.limuyang2.pdf.core.PdfQuad
 import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
@@ -51,7 +57,7 @@ internal object JvmPdfiumBackend : PdfiumBackend {
             text = true,
             search = false,
             bookmarks = false,
-            links = false,
+            links = true,
             thumbnails = false,
             progressiveLoading = false,
             progressiveRendering = false,
@@ -367,7 +373,200 @@ internal object JvmPdfiumBackend : PdfiumBackend {
     override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
-    ): List<PdfLink> = unsupported("links on JVM")
+    ): List<PdfLink> =
+        withPage(document, pageIndex) { page ->
+            val pdfium = requireLibrary()
+            val nativeDocument = document(document)
+            val position = IntByReference()
+            val linkReference = PointerByReference()
+            buildList {
+                while (
+                    pdfium.FPDFLink_Enumerate(
+                        page,
+                        position,
+                        linkReference,
+                    ) != 0
+                ) {
+                    val link =
+                        linkReference.value
+                            ?: throw PdfPageException(pageIndex)
+                    add(jvmPdfLink(nativeDocument, link))
+                }
+            }
+        }
+
+    private fun jvmPdfLink(
+        document: Pointer,
+        link: Pointer,
+    ): PdfLink {
+        val pdfium = requireLibrary()
+        val directDestination = pdfium.FPDFLink_GetDest(document, link)
+        val action = pdfium.FPDFLink_GetAction(link)
+        val actionType =
+            action?.let { pdfium.FPDFAction_GetType(it).toInt() }
+                ?: ACTION_UNSUPPORTED
+        val target =
+            when {
+                directDestination != null ->
+                    PdfLinkTarget.Internal(
+                        jvmDestination(document, directDestination),
+                    )
+                actionType == ACTION_GOTO -> {
+                    val destination =
+                        checkNotNull(
+                            pdfium.FPDFAction_GetDest(
+                                document,
+                                checkNotNull(action),
+                            ),
+                        ) {
+                            "A PDF go-to action has no destination"
+                        }
+                    PdfLinkTarget.Internal(
+                        jvmDestination(document, destination),
+                    )
+                }
+                actionType == ACTION_URI -> {
+                    val uri =
+                        readUtf8 { buffer, length ->
+                            pdfium.FPDFAction_GetURIPath(
+                                document,
+                                checkNotNull(action),
+                                buffer,
+                                NativeLong(length),
+                            )
+                        }
+                    if (uri.isNullOrEmpty()) {
+                        PdfLinkTarget.Unsupported(actionType)
+                    } else {
+                        PdfLinkTarget.Uri(uri)
+                    }
+                }
+                actionType == ACTION_REMOTE_GOTO -> {
+                    val filePath =
+                        readUtf8 { buffer, length ->
+                            pdfium.FPDFAction_GetFilePath(
+                                checkNotNull(action),
+                                buffer,
+                                NativeLong(length),
+                            )
+                        }
+                    PdfLinkTarget.RemoteDocument(filePath, null)
+                }
+                else -> PdfLinkTarget.Unsupported(actionType)
+            }
+        return PdfLink(
+            bounds = jvmLinkBounds(link),
+            target = target,
+        )
+    }
+
+    private fun jvmLinkBounds(link: Pointer): List<PdfQuad> {
+        val pdfium = requireLibrary()
+        val quadCount = pdfium.FPDFLink_CountQuadPoints(link)
+        if (quadCount > 0) {
+            return buildList(quadCount) {
+                repeat(quadCount) { index ->
+                    val quad = FsQuadPointsF()
+                    if (pdfium.FPDFLink_GetQuadPoints(link, index, quad) != 0) {
+                        add(
+                            PdfQuad(
+                                PdfPoint(quad.x1.toDouble(), quad.y1.toDouble()),
+                                PdfPoint(quad.x2.toDouble(), quad.y2.toDouble()),
+                                PdfPoint(quad.x3.toDouble(), quad.y3.toDouble()),
+                                PdfPoint(quad.x4.toDouble(), quad.y4.toDouble()),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        val rect = FsRectF()
+        if (pdfium.FPDFLink_GetAnnotRect(link, rect) == 0) {
+            return emptyList()
+        }
+        return listOf(
+            PdfQuad(
+                PdfPoint(rect.left.toDouble(), rect.top.toDouble()),
+                PdfPoint(rect.right.toDouble(), rect.top.toDouble()),
+                PdfPoint(rect.left.toDouble(), rect.bottom.toDouble()),
+                PdfPoint(rect.right.toDouble(), rect.bottom.toDouble()),
+            ),
+        )
+    }
+
+    private fun jvmDestination(
+        document: Pointer,
+        destination: Pointer,
+    ) = with(requireLibrary()) {
+        val pageIndex = FPDFDest_GetDestPageIndex(document, destination)
+        check(pageIndex >= 0) { "PDFium returned an invalid destination page" }
+        val parameterCount = NativeLongByReference()
+        val parameterMemory = Memory(4L * Float.SIZE_BYTES)
+        try {
+            val viewMode =
+                FPDFDest_GetView(
+                    destination,
+                    parameterCount,
+                    parameterMemory,
+                ).toInt()
+            val count = parameterCount.value.toInt().coerceIn(0, 4)
+            val hasX = IntByReference()
+            val hasY = IntByReference()
+            val hasZoom = IntByReference()
+            val x = FloatByReference()
+            val y = FloatByReference()
+            val zoom = FloatByReference()
+            FPDFDest_GetLocationInPage(
+                destination,
+                hasX,
+                hasY,
+                hasZoom,
+                x,
+                y,
+                zoom,
+            )
+            pdfDestination(
+                pageIndex = pageIndex,
+                viewMode = viewMode,
+                parameters =
+                    List(count) { index ->
+                        parameterMemory.getFloat(
+                            index.toLong() * Float.SIZE_BYTES,
+                        ).toDouble()
+                    },
+                hasX = hasX.value != 0,
+                x = x.value.toDouble(),
+                hasY = hasY.value != 0,
+                y = y.value.toDouble(),
+                hasZoom = hasZoom.value != 0,
+                zoom = zoom.value.toDouble(),
+            )
+        } finally {
+            parameterMemory.close()
+        }
+    }
+
+    private inline fun readUtf8(
+        read: (Pointer?, Long) -> NativeLong,
+    ): String? {
+        val requiredBytes = read(null, 0).toLong()
+        if (requiredBytes <= 1) return null
+        require(requiredBytes <= Int.MAX_VALUE) {
+            "PDFium returned an oversized UTF-8 string"
+        }
+        val memory = Memory(requiredBytes)
+        return try {
+            val written = read(memory, requiredBytes).toLong()
+            check(written == requiredBytes) {
+                "PDFium returned an invalid UTF-8 result length: $written"
+            }
+            memory
+                .getByteArray(0, (requiredBytes - 1).toInt())
+                .toString(Charsets.UTF_8)
+        } finally {
+            memory.close()
+        }
+    }
 
     private fun document(handle: NativeDocumentHandle): Pointer =
         documents[handle.value]?.pointer
@@ -467,4 +666,9 @@ internal object JvmPdfiumBackend : PdfiumBackend {
 
     private fun unsupported(feature: String): Nothing =
         throw PdfUnsupportedFeatureException(feature)
+
+    private const val ACTION_UNSUPPORTED: Int = 0
+    private const val ACTION_GOTO: Int = 1
+    private const val ACTION_REMOTE_GOTO: Int = 2
+    private const val ACTION_URI: Int = 3
 }

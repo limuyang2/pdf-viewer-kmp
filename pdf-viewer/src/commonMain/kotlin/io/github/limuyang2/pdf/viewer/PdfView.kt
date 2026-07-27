@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,16 +37,23 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.limuyang2.pdf.core.PdfDocument
+import io.github.limuyang2.pdf.core.PdfLink
+import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfPageInfo
 import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfPoint
+import io.github.limuyang2.pdf.core.PdfQuad
 import io.github.limuyang2.pdf.core.PdfRenderRequest
+import io.github.limuyang2.pdf.core.PdfRotation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -53,6 +63,10 @@ import kotlin.math.roundToInt
  *
  * The caller retains ownership of [document]. [PdfView] closes temporary
  * rendered bitmaps, but never closes the document itself.
+ *
+ * [onLinkClick] runs before the built-in link behavior. Return `true` to
+ * consume the link. Returning `false` lets [PdfView] navigate internal
+ * destinations or open URI links through the platform URI handler.
  */
 @Composable
 public fun PdfView(
@@ -65,6 +79,7 @@ public fun PdfView(
     pageColor: Color = Color.White,
     maxRenderDimension: Int = 4096,
     onPageError: (pageIndex: Int, error: Throwable) -> Unit = { _, _ -> },
+    onLinkClick: (PdfLink) -> Boolean = { false },
 ) {
     require(pageSpacing >= 0.dp) { "pageSpacing must be non-negative" }
     require(pagePadding >= 0.dp) { "pagePadding must be non-negative" }
@@ -79,6 +94,44 @@ public fun PdfView(
             mutableIntStateOf(0)
         }
     var transformInProgress by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+
+    fun activateLink(
+        pageIndex: Int,
+        link: PdfLink,
+    ) {
+        if (onLinkClick(link)) {
+            return
+        }
+        when (val target = link.target) {
+            is PdfLinkTarget.Internal -> {
+                val targetPage = target.destination.pageIndex
+                if (targetPage !in 0 until document.pageCount) {
+                    onPageError(
+                        pageIndex,
+                        IllegalArgumentException(
+                            "PDF link targets invalid page $targetPage",
+                        ),
+                    )
+                    return
+                }
+                coroutineScope.launch {
+                    state.scrollToPage(targetPage)
+                }
+            }
+            is PdfLinkTarget.Uri -> {
+                try {
+                    uriHandler.openUri(target.uri)
+                } catch (failure: Throwable) {
+                    onPageError(pageIndex, failure)
+                }
+            }
+            is PdfLinkTarget.RemoteDocument,
+            is PdfLinkTarget.Unsupported,
+            -> Unit
+        }
+    }
 
     fun applyTransform(
         centroid: Offset,
@@ -196,6 +249,9 @@ public fun PdfView(
                         pageColor = pageColor,
                         maxRenderDimension = maxRenderDimension,
                         onError = onPageError,
+                        onLinkActivated = { link ->
+                            activateLink(pageIndex, link)
+                        },
                     )
                 }
             }
@@ -270,6 +326,7 @@ private fun PdfPage(
     pageColor: Color,
     maxRenderDimension: Int,
     onError: (Int, Throwable) -> Unit,
+    onLinkActivated: (PdfLink) -> Unit,
 ) {
     val informationState by
         produceState<PdfPageInformationState>(
@@ -315,6 +372,24 @@ private fun PdfPage(
             }
             is PdfPageInformationState.Ready -> current.information
         }
+    val links by
+        produceState(
+            initialValue = emptyList<PdfLink>(),
+            document,
+            pageIndex,
+        ) {
+            value =
+                try {
+                    document[pageIndex].links()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (failure: Throwable) {
+                    onError(pageIndex, failure)
+                    emptyList()
+                }
+        }
+    val currentOnLinkActivated by
+        rememberUpdatedState(onLinkActivated)
 
     val aspectRatio =
         pageInformation.size.width.toFloat() /
@@ -384,7 +459,18 @@ private fun PdfPage(
                 .width(width)
                 .aspectRatio(aspectRatio)
                 .background(pageColor)
-                .border(1.dp, Color(0x22000000)),
+                .border(1.dp, Color(0x22000000))
+                .pointerInput(links, pageInformation) {
+                    detectTapGestures { position ->
+                        findPdfLinkAt(
+                            links = links,
+                            position = position,
+                            displayedWidth = size.width.toFloat(),
+                            displayedHeight = size.height.toFloat(),
+                            pageInformation = pageInformation,
+                        )?.let(currentOnLinkActivated)
+                    }
+                },
         contentAlignment = Alignment.Center,
     ) {
         when (val current = renderState) {
@@ -403,6 +489,95 @@ private fun PdfPage(
                 )
         }
     }
+}
+
+internal fun findPdfLinkAt(
+    links: List<PdfLink>,
+    position: Offset,
+    displayedWidth: Float,
+    displayedHeight: Float,
+    pageInformation: PdfPageInfo,
+): PdfLink? {
+    if (
+        displayedWidth <= 0f ||
+        displayedHeight <= 0f ||
+        position == Offset.Unspecified
+    ) {
+        return null
+    }
+    val point =
+        displayedPointToPdf(
+            position = position,
+            displayedWidth = displayedWidth,
+            displayedHeight = displayedHeight,
+            pageInformation = pageInformation,
+        )
+    return links.lastOrNull { link ->
+        link.bounds.any { it.contains(point) }
+    }
+}
+
+internal fun displayedPointToPdf(
+    position: Offset,
+    displayedWidth: Float,
+    displayedHeight: Float,
+    pageInformation: PdfPageInfo,
+): PdfPoint {
+    val displayedPageWidth = pageInformation.size.width
+    val displayedPageHeight = pageInformation.size.height
+    val displayedX =
+        position.x / displayedWidth * displayedPageWidth
+    val displayedY =
+        position.y / displayedHeight * displayedPageHeight
+    val nativeWidth =
+        when (pageInformation.rotation) {
+            PdfRotation.Degrees0,
+            PdfRotation.Degrees180,
+            -> displayedPageWidth
+            PdfRotation.Degrees90,
+            PdfRotation.Degrees270,
+            -> displayedPageHeight
+        }
+    val nativeHeight =
+        when (pageInformation.rotation) {
+            PdfRotation.Degrees0,
+            PdfRotation.Degrees180,
+            -> displayedPageHeight
+            PdfRotation.Degrees90,
+            PdfRotation.Degrees270,
+            -> displayedPageWidth
+        }
+    return when (pageInformation.rotation) {
+        PdfRotation.Degrees0 ->
+            PdfPoint(
+                x = displayedX,
+                y = nativeHeight - displayedY,
+            )
+        PdfRotation.Degrees90 ->
+            PdfPoint(
+                x = displayedY,
+                y = displayedX,
+            )
+        PdfRotation.Degrees180 ->
+            PdfPoint(
+                x = nativeWidth - displayedX,
+                y = displayedY,
+            )
+        PdfRotation.Degrees270 ->
+            PdfPoint(
+                x = nativeWidth - displayedY,
+                y = nativeHeight - displayedX,
+            )
+    }
+}
+
+private fun PdfQuad.contains(point: PdfPoint): Boolean {
+    val points = listOf(first, second, third, fourth)
+    val left = points.minOf(PdfPoint::x)
+    val right = points.maxOf(PdfPoint::x)
+    val bottom = points.minOf(PdfPoint::y)
+    val top = points.maxOf(PdfPoint::y)
+    return point.x in left..right && point.y in bottom..top
 }
 
 @Composable

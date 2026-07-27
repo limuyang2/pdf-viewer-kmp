@@ -6,12 +6,15 @@ import io.github.limuyang2.pdf.core.PdfCapabilities
 import io.github.limuyang2.pdf.core.PdfDocumentInfo
 import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfLink
+import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfMetadata
 import io.github.limuyang2.pdf.core.PdfNativeException
 import io.github.limuyang2.pdf.core.PdfPageException
 import io.github.limuyang2.pdf.core.PdfPageInfo
 import io.github.limuyang2.pdf.core.PdfPermissions
 import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfPoint
+import io.github.limuyang2.pdf.core.PdfQuad
 import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
@@ -30,7 +33,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
             text = true,
             search = false,
             bookmarks = false,
-            links = false,
+            links = true,
             thumbnails = false,
             progressiveLoading = false,
             progressiveRendering = false,
@@ -267,7 +270,75 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
     override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
-    ): List<PdfLink> = unsupported("links on Android")
+    ): List<PdfLink> =
+        AndroidPdfiumNative.nativeLinks(document.value, pageIndex)
+            ?.map(::androidPdfLink)
+            ?: throw PdfPageException(pageIndex)
+
+    private fun androidPdfLink(link: AndroidNativePdfLink): PdfLink {
+        require(link.bounds.size % LINK_QUAD_VALUE_COUNT == 0) {
+            "The Android PDFium bridge returned invalid link bounds"
+        }
+        require(link.destination.size == DESTINATION_VALUE_COUNT) {
+            "The Android PDFium bridge returned an invalid destination"
+        }
+        val destinationValues = link.destination
+        val parameterCount =
+            destinationValues[2].toInt().coerceIn(0, 4)
+        val destination =
+            if (destinationValues[0] >= 0.0) {
+                pdfDestination(
+                    pageIndex = destinationValues[0].toInt(),
+                    viewMode = destinationValues[1].toInt(),
+                    parameters =
+                        List(parameterCount) { destinationValues[it + 3] },
+                    hasX = destinationValues[7] != 0.0,
+                    x = destinationValues[8],
+                    hasY = destinationValues[9] != 0.0,
+                    y = destinationValues[10],
+                    hasZoom = destinationValues[11] != 0.0,
+                    zoom = destinationValues[12],
+                )
+            } else {
+                null
+            }
+        val value =
+            link.valueUtf8?.decodeToString(throwOnInvalidSequence = false)
+        val target =
+            when (link.targetType) {
+                PDF_LINK_TARGET_INTERNAL ->
+                    PdfLinkTarget.Internal(
+                        checkNotNull(destination) {
+                            "An internal PDF link has no destination"
+                        },
+                    )
+                PDF_LINK_TARGET_URI ->
+                    PdfLinkTarget.Uri(
+                        checkNotNull(value) {
+                            "A PDF URI link has no URI"
+                        },
+                    )
+                PDF_LINK_TARGET_REMOTE_DOCUMENT ->
+                    PdfLinkTarget.RemoteDocument(value, destination)
+                else ->
+                    PdfLinkTarget.Unsupported(link.nativeActionType)
+            }
+        return PdfLink(
+            bounds =
+                link.bounds
+                    .asList()
+                    .chunked(LINK_QUAD_VALUE_COUNT)
+                    .map { values ->
+                        PdfQuad(
+                            PdfPoint(values[0], values[1]),
+                            PdfPoint(values[2], values[3]),
+                            PdfPoint(values[4], values[5]),
+                            PdfPoint(values[6], values[7]),
+                        )
+                    },
+            target = target,
+        )
+    }
 
     private fun pdfRotation(value: Int): PdfRotation =
         when (value) {
@@ -298,4 +369,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
 
     private fun unsupported(feature: String): Nothing =
         throw PdfUnsupportedFeatureException(feature)
+
+    private const val LINK_QUAD_VALUE_COUNT: Int = 8
+    private const val DESTINATION_VALUE_COUNT: Int = 13
 }

@@ -9,12 +9,15 @@ import io.github.limuyang2.pdf.core.PdfClosedException
 import io.github.limuyang2.pdf.core.PdfDocumentInfo
 import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfLink
+import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfMetadata
 import io.github.limuyang2.pdf.core.PdfNativeException
 import io.github.limuyang2.pdf.core.PdfPageException
 import io.github.limuyang2.pdf.core.PdfPageInfo
 import io.github.limuyang2.pdf.core.PdfPermissions
 import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfPoint
+import io.github.limuyang2.pdf.core.PdfQuad
 import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
@@ -44,11 +47,15 @@ import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_document_info
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_metadata_utf16
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_info
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_label_utf16
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_links
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_initialize
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_link_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_open_memory
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_page_info_t
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_quad_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_render_page
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_render_request_t
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar
 import kotlinx.cinterop.IntVar
@@ -58,6 +65,8 @@ import kotlinx.cinterop.ULongVar
 import kotlinx.cinterop.UShortVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.allocArray
+import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
@@ -73,7 +82,7 @@ internal object IosPdfiumBackend : PdfiumBackend {
             text = true,
             search = false,
             bookmarks = false,
-            links = false,
+            links = true,
             thumbnails = false,
             progressiveLoading = false,
             progressiveRendering = false,
@@ -351,7 +360,179 @@ internal object IosPdfiumBackend : PdfiumBackend {
     override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
-    ): List<PdfLink> = unsupported("links on iOS")
+    ): List<PdfLink> =
+        memScoped {
+            val requiredLinks = alloc<ULongVar>()
+            val requiredQuads = alloc<ULongVar>()
+            val requiredStringBytes = alloc<ULongVar>()
+            val sizeStatus =
+                pdfv_get_page_links(
+                    document.pointer(),
+                    pageIndex,
+                    null,
+                    0u,
+                    null,
+                    0u,
+                    null,
+                    0u,
+                    requiredLinks.ptr,
+                    requiredQuads.ptr,
+                    requiredStringBytes.ptr,
+                )
+            if (
+                sizeStatus != PDFV_OK &&
+                sizeStatus != PDFV_ERROR_BUFFER_TOO_SMALL
+            ) {
+                requireBridgeStatus(sizeStatus, pageIndex)
+            }
+            val linkCount = requiredLinks.value.checkedInt("link")
+            val quadCount = requiredQuads.value.checkedInt("link quad")
+            val stringByteCount =
+                requiredStringBytes.value.checkedInt("link string")
+            if (linkCount == 0) {
+                return@memScoped emptyList()
+            }
+
+            val nativeLinks = allocArray<pdfv_link_t>(linkCount)
+            val nativeQuads =
+                if (quadCount > 0) {
+                    allocArray<pdfv_quad_t>(quadCount)
+                } else {
+                    null
+                }
+            val stringBytes = ByteArray(stringByteCount)
+            val status =
+                if (stringBytes.isEmpty()) {
+                    pdfv_get_page_links(
+                        document.pointer(),
+                        pageIndex,
+                        nativeLinks,
+                        linkCount.toULong(),
+                        nativeQuads,
+                        quadCount.toULong(),
+                        null,
+                        0u,
+                        requiredLinks.ptr,
+                        requiredQuads.ptr,
+                        requiredStringBytes.ptr,
+                    )
+                } else {
+                    stringBytes.usePinned { pinned ->
+                        pdfv_get_page_links(
+                            document.pointer(),
+                            pageIndex,
+                            nativeLinks,
+                            linkCount.toULong(),
+                            nativeQuads,
+                            quadCount.toULong(),
+                            pinned.addressOf(0).reinterpret<ByteVar>(),
+                            stringBytes.size.toULong(),
+                            requiredLinks.ptr,
+                            requiredQuads.ptr,
+                            requiredStringBytes.ptr,
+                        )
+                    }
+                }
+            requireBridgeStatus(status, pageIndex)
+
+            List(linkCount) { index ->
+                val link = nativeLinks[index]
+                val firstQuad = link.first_quad.checkedInt("quad offset")
+                val linkQuadCount = link.quad_count.checkedInt("quad count")
+                require(
+                    firstQuad <= quadCount &&
+                        linkQuadCount <= quadCount - firstQuad,
+                ) {
+                    "The shared PDFium bridge returned invalid link bounds"
+                }
+                val bounds =
+                    List(linkQuadCount) { quadIndex ->
+                        val quad =
+                            checkNotNull(nativeQuads)[firstQuad + quadIndex]
+                        PdfQuad(
+                            PdfPoint(quad.x1, quad.y1),
+                            PdfPoint(quad.x2, quad.y2),
+                            PdfPoint(quad.x3, quad.y3),
+                            PdfPoint(quad.x4, quad.y4),
+                        )
+                    }
+                val destination =
+                    link.destination
+                        .takeIf { it.page_index >= 0 }
+                        ?.let {
+                            pdfDestination(
+                                pageIndex = it.page_index,
+                                viewMode = it.view_mode.toInt(),
+                                parameters =
+                                    List(
+                                        it.parameter_count
+                                            .toInt()
+                                            .coerceIn(0, 4),
+                                    ) { parameterIndex ->
+                                        it.parameters[parameterIndex]
+                                    },
+                                hasX = it.has_x != 0,
+                                x = it.x,
+                                hasY = it.has_y != 0,
+                                y = it.y,
+                                hasZoom = it.has_zoom != 0,
+                                zoom = it.zoom,
+                            )
+                        }
+                val stringOffset =
+                    link.string_offset.checkedInt("link string offset")
+                val stringLength =
+                    link.string_length.checkedInt("link string length")
+                require(
+                    stringOffset <= stringBytes.size &&
+                        stringLength <= stringBytes.size - stringOffset,
+                ) {
+                    "The shared PDFium bridge returned an invalid link string"
+                }
+                val value =
+                    if (stringLength == 0) {
+                        null
+                    } else {
+                        stringBytes
+                            .copyOfRange(
+                                stringOffset,
+                                stringOffset + stringLength,
+                            )
+                            .decodeToString(throwOnInvalidSequence = false)
+                    }
+                PdfLink(
+                    bounds = bounds,
+                    target =
+                        when (link.target_type.toInt()) {
+                            PDF_LINK_TARGET_INTERNAL ->
+                                PdfLinkTarget.Internal(
+                                    checkNotNull(destination),
+                                )
+                            PDF_LINK_TARGET_URI ->
+                                PdfLinkTarget.Uri(checkNotNull(value))
+                            PDF_LINK_TARGET_REMOTE_DOCUMENT ->
+                                PdfLinkTarget.RemoteDocument(
+                                    value,
+                                    destination,
+                                )
+                            else ->
+                                PdfLinkTarget.Unsupported(
+                                    link.native_action_type.toInt(),
+                                )
+                        },
+                )
+            }
+        }
+
+    private fun ULong.checkedInt(kind: String): Int {
+        if (this > Int.MAX_VALUE.toULong()) {
+            throw PdfNativeException(
+                nativeErrorCode = 0,
+                message = "The shared PDFium bridge returned oversized $kind data",
+            )
+        }
+        return toInt()
+    }
 
     private fun NativeDocumentHandle.pointer(): CPointer<pdfv_document_t> =
         documents[value]

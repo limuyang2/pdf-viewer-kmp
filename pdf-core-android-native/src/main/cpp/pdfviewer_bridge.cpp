@@ -12,6 +12,7 @@ namespace {
 constexpr jsize kOpenResultSize = 4;
 constexpr jsize kPageInfoResultSize = 8;
 constexpr jsize kDocumentInfoResultSize = 7;
+constexpr jsize kDestinationResultSize = 13;
 
 pdfv_document_t* FromHandle(jlong handle) {
   return reinterpret_cast<pdfv_document_t*>(static_cast<intptr_t>(handle));
@@ -348,4 +349,145 @@ Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeExtractText
         FromHandle(handle), page_index, start_character_index,
         character_count, buffer, units, required);
   });
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeLinks(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jint page_index) {
+  try {
+    size_t link_count = 0;
+    size_t quad_count = 0;
+    size_t string_bytes = 0;
+    pdfv_status_t status = pdfv_get_page_links(
+        FromHandle(handle), page_index, nullptr, 0, nullptr, 0, nullptr, 0,
+        &link_count, &quad_count, &string_bytes);
+    if (status != PDFV_OK && status != PDFV_ERROR_BUFFER_TOO_SMALL) {
+      return nullptr;
+    }
+    if (link_count >
+            static_cast<size_t>(std::numeric_limits<jsize>::max()) ||
+        quad_count >
+            static_cast<size_t>(std::numeric_limits<jsize>::max()) / 8 ||
+        string_bytes >
+            static_cast<size_t>(std::numeric_limits<jsize>::max())) {
+      return nullptr;
+    }
+
+    std::vector<pdfv_link_t> links(link_count);
+    std::vector<pdfv_quad_t> quads(quad_count);
+    std::vector<char> strings(string_bytes);
+    if (link_count > 0) {
+      status = pdfv_get_page_links(
+          FromHandle(handle), page_index, links.data(), links.size(),
+          quads.empty() ? nullptr : quads.data(), quads.size(),
+          strings.empty() ? nullptr : strings.data(), strings.size(),
+          &link_count, &quad_count, &string_bytes);
+      if (status != PDFV_OK) {
+        return nullptr;
+      }
+    }
+
+    jclass link_class = env->FindClass(
+        "io/github/limuyang2/pdf/core/internal/AndroidNativePdfLink");
+    if (!link_class) {
+      return nullptr;
+    }
+    jmethodID constructor =
+        env->GetMethodID(link_class, "<init>", "([DII[D[B)V");
+    if (!constructor) {
+      return nullptr;
+    }
+    jobjectArray result =
+        env->NewObjectArray(static_cast<jsize>(link_count), link_class, nullptr);
+    if (!result) {
+      return nullptr;
+    }
+
+    for (size_t index = 0; index < link_count; ++index) {
+      const pdfv_link_t& link = links[index];
+      if (link.first_quad > quads.size() ||
+          link.quad_count > quads.size() - link.first_quad ||
+          link.string_offset > strings.size() ||
+          link.string_length > strings.size() - link.string_offset) {
+        return nullptr;
+      }
+
+      std::vector<jdouble> bounds(link.quad_count * 8);
+      for (size_t quad_index = 0; quad_index < link.quad_count; ++quad_index) {
+        const pdfv_quad_t& quad = quads[link.first_quad + quad_index];
+        const size_t offset = quad_index * 8;
+        bounds[offset] = quad.x1;
+        bounds[offset + 1] = quad.y1;
+        bounds[offset + 2] = quad.x2;
+        bounds[offset + 3] = quad.y2;
+        bounds[offset + 4] = quad.x3;
+        bounds[offset + 5] = quad.y3;
+        bounds[offset + 6] = quad.x4;
+        bounds[offset + 7] = quad.y4;
+      }
+      jdoubleArray bounds_array =
+          env->NewDoubleArray(static_cast<jsize>(bounds.size()));
+      if (!bounds_array) {
+        return nullptr;
+      }
+      env->SetDoubleArrayRegion(
+          bounds_array, 0, static_cast<jsize>(bounds.size()), bounds.data());
+
+      const pdfv_destination_t& destination = link.destination;
+      const jdouble destination_values[kDestinationResultSize] = {
+          static_cast<double>(destination.page_index),
+          static_cast<double>(destination.view_mode),
+          static_cast<double>(destination.parameter_count),
+          destination.parameters[0],
+          destination.parameters[1],
+          destination.parameters[2],
+          destination.parameters[3],
+          destination.has_x ? 1.0 : 0.0,
+          destination.x,
+          destination.has_y ? 1.0 : 0.0,
+          destination.y,
+          destination.has_zoom ? 1.0 : 0.0,
+          destination.zoom,
+      };
+      jdoubleArray destination_array =
+          env->NewDoubleArray(kDestinationResultSize);
+      if (!destination_array) {
+        return nullptr;
+      }
+      env->SetDoubleArrayRegion(
+          destination_array, 0, kDestinationResultSize, destination_values);
+
+      jbyteArray value = nullptr;
+      if (link.string_length > 0) {
+        value = env->NewByteArray(static_cast<jsize>(link.string_length));
+        if (!value) {
+          return nullptr;
+        }
+        env->SetByteArrayRegion(
+            value, 0, static_cast<jsize>(link.string_length),
+            reinterpret_cast<const jbyte*>(
+                strings.data() + link.string_offset));
+      }
+      jobject item = env->NewObject(
+          link_class, constructor, bounds_array,
+          static_cast<jint>(link.target_type),
+          static_cast<jint>(link.native_action_type), destination_array, value);
+      if (!item) {
+        return nullptr;
+      }
+      env->SetObjectArrayElement(result, static_cast<jsize>(index), item);
+      env->DeleteLocalRef(bounds_array);
+      env->DeleteLocalRef(destination_array);
+      if (value) {
+        env->DeleteLocalRef(value);
+      }
+      env->DeleteLocalRef(item);
+    }
+    return result;
+  } catch (...) {
+    return nullptr;
+  }
 }

@@ -381,6 +381,206 @@
     });
   }
 
+  function readUtf8(read) {
+    var module = requireModule();
+    var requiredBytes = read(0, 0) >>> 0;
+    if (requiredBytes <= 1) return null;
+    var pointer = module._malloc(requiredBytes);
+    try {
+      if ((read(pointer, requiredBytes) >>> 0) !== requiredBytes) {
+        throw new Error("PDFium returned an invalid UTF-8 result length");
+      }
+      return new TextDecoder().decode(
+        module.HEAPU8.slice(pointer, pointer + requiredBytes - 1)
+      );
+    } finally {
+      module._free(pointer);
+    }
+  }
+
+  function destination(handle, nativeDestination) {
+    var module = requireModule();
+    var parameterCountPointer = module._malloc(4);
+    var parametersPointer = module._malloc(16);
+    var locationPointer = module._malloc(24);
+    try {
+      module.HEAPU32[parameterCountPointer >> 2] = 0;
+      var viewMode = module._FPDFDest_GetView(
+        nativeDestination,
+        parameterCountPointer,
+        parametersPointer
+      );
+      var parameterCount = Math.min(
+        module.HEAPU32[parameterCountPointer >> 2],
+        4
+      );
+      var parameters = [];
+      for (var index = 0; index < parameterCount; index += 1) {
+        parameters.push(module.HEAPF32[(parametersPointer >> 2) + index]);
+      }
+      var hasXPointer = locationPointer;
+      var hasYPointer = locationPointer + 4;
+      var hasZoomPointer = locationPointer + 8;
+      var xPointer = locationPointer + 12;
+      var yPointer = locationPointer + 16;
+      var zoomPointer = locationPointer + 20;
+      module.HEAP32[hasXPointer >> 2] = 0;
+      module.HEAP32[hasYPointer >> 2] = 0;
+      module.HEAP32[hasZoomPointer >> 2] = 0;
+      module._FPDFDest_GetLocationInPage(
+        nativeDestination,
+        hasXPointer,
+        hasYPointer,
+        hasZoomPointer,
+        xPointer,
+        yPointer,
+        zoomPointer
+      );
+      return Object.freeze({
+        pageIndex: module._FPDFDest_GetDestPageIndex(
+          handle,
+          nativeDestination
+        ),
+        viewMode: viewMode,
+        parameters: Object.freeze(parameters),
+        parameterCount: parameterCount,
+        parameter0: parameters[0] || 0,
+        parameter1: parameters[1] || 0,
+        parameter2: parameters[2] || 0,
+        parameter3: parameters[3] || 0,
+        hasX: module.HEAP32[hasXPointer >> 2] !== 0,
+        x: module.HEAPF32[xPointer >> 2],
+        hasY: module.HEAP32[hasYPointer >> 2] !== 0,
+        y: module.HEAPF32[yPointer >> 2],
+        hasZoom: module.HEAP32[hasZoomPointer >> 2] !== 0,
+        zoom: module.HEAPF32[zoomPointer >> 2]
+      });
+    } finally {
+      module._free(parameterCountPointer);
+      module._free(parametersPointer);
+      module._free(locationPointer);
+    }
+  }
+
+  function linkBounds(nativeLink) {
+    var module = requireModule();
+    var quadCount = module._FPDFLink_CountQuadPoints(nativeLink);
+    var result = [];
+    if (quadCount > 0) {
+      var quadPointer = module._malloc(32);
+      try {
+        for (var index = 0; index < quadCount; index += 1) {
+          if (module._FPDFLink_GetQuadPoints(nativeLink, index, quadPointer)) {
+            var offset = quadPointer >> 2;
+            result.push(Object.freeze({
+              x1: module.HEAPF32[offset],
+              y1: module.HEAPF32[offset + 1],
+              x2: module.HEAPF32[offset + 2],
+              y2: module.HEAPF32[offset + 3],
+              x3: module.HEAPF32[offset + 4],
+              y3: module.HEAPF32[offset + 5],
+              x4: module.HEAPF32[offset + 6],
+              y4: module.HEAPF32[offset + 7]
+            }));
+          }
+        }
+      } finally {
+        module._free(quadPointer);
+      }
+    }
+    if (result.length === 0) {
+      var rectPointer = module._malloc(16);
+      try {
+        if (module._FPDFLink_GetAnnotRect(nativeLink, rectPointer)) {
+          var rectOffset = rectPointer >> 2;
+          var left = module.HEAPF32[rectOffset];
+          var top = module.HEAPF32[rectOffset + 1];
+          var right = module.HEAPF32[rectOffset + 2];
+          var bottom = module.HEAPF32[rectOffset + 3];
+          result.push(Object.freeze({
+            x1: left, y1: top,
+            x2: right, y2: top,
+            x3: left, y3: bottom,
+            x4: right, y4: bottom
+          }));
+        }
+      } finally {
+        module._free(rectPointer);
+      }
+    }
+    return Object.freeze(result);
+  }
+
+  function links(handle, pageIndex) {
+    return withPage(handle, pageIndex, function (module, page) {
+      var positionPointer = module._malloc(4);
+      var linkPointer = module._malloc(4);
+      var result = [];
+      try {
+        module.HEAP32[positionPointer >> 2] = 0;
+        while (module._FPDFLink_Enumerate(page, positionPointer, linkPointer)) {
+          var nativeLink = module.HEAPU32[linkPointer >> 2];
+          if (!nativeLink) throw new Error("PDFium returned a null link");
+          var nativeDestination = module._FPDFLink_GetDest(handle, nativeLink);
+          var nativeAction = module._FPDFLink_GetAction(nativeLink);
+          var actionType = nativeAction
+            ? module._FPDFAction_GetType(nativeAction)
+            : 0;
+          var targetType = 4;
+          var targetDestination = null;
+          var value = null;
+          if (nativeDestination) {
+            targetType = 1;
+            targetDestination = destination(handle, nativeDestination);
+          } else if (actionType === 1) {
+            nativeDestination =
+              module._FPDFAction_GetDest(handle, nativeAction);
+            if (nativeDestination) {
+              targetType = 1;
+              targetDestination = destination(handle, nativeDestination);
+            }
+          } else if (actionType === 3) {
+            value = readUtf8(function (buffer, length) {
+              return module._FPDFAction_GetURIPath(
+                handle,
+                nativeAction,
+                buffer,
+                length
+              );
+            });
+            targetType = value ? 2 : 4;
+          } else if (actionType === 2) {
+            value = readUtf8(function (buffer, length) {
+              return module._FPDFAction_GetFilePath(
+                nativeAction,
+                buffer,
+                length
+              );
+            });
+            targetType = 3;
+          }
+          let bounds = linkBounds(nativeLink);
+          result.push(Object.freeze({
+            bounds: bounds,
+            boundCount: bounds.length,
+            bound: function (index) { return bounds[index]; },
+            targetType: targetType,
+            actionType: actionType,
+            destination: targetDestination,
+            value: value
+          }));
+        }
+        return Object.freeze({
+          count: result.length,
+          link: function (index) { return result[index]; }
+        });
+      } finally {
+        module._free(positionPointer);
+        module._free(linkPointer);
+      }
+    });
+  }
+
   root.__pdfViewerPdfium = Object.freeze({
     initialize: initialize,
     destroy: destroy,
@@ -392,6 +592,7 @@
     pageInformation: pageInformation,
     render: render,
     extractText: extractText,
+    links: links,
     debugAllocationCounts: debugAllocationCounts
   });
 })(globalThis);

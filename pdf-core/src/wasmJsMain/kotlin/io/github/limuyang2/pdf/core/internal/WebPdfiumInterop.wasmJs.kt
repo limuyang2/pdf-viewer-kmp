@@ -7,8 +7,6 @@ import js.typedarrays.Uint8Array
 import js.typedarrays.toByteArray
 import js.typedarrays.toUint8Array
 import kotlinx.coroutines.await
-import kotlin.js.ExperimentalWasmJsInterop
-import kotlin.js.JsAny
 import kotlin.js.Promise
 
 private external interface WasmOpenedDocument : JsAny {
@@ -34,6 +32,47 @@ private external interface WasmPageInformation : JsAny {
     val bottom: Double
     val right: Double
     val top: Double
+}
+
+private external interface WasmPdfQuad : JsAny {
+    val x1: Double
+    val y1: Double
+    val x2: Double
+    val y2: Double
+    val x3: Double
+    val y3: Double
+    val x4: Double
+    val y4: Double
+}
+
+private external interface WasmPdfDestination : JsAny {
+    val pageIndex: Int
+    val viewMode: Int
+    val parameterCount: Int
+    val parameter0: Double
+    val parameter1: Double
+    val parameter2: Double
+    val parameter3: Double
+    val hasX: Boolean
+    val x: Double
+    val hasY: Boolean
+    val y: Double
+    val hasZoom: Boolean
+    val zoom: Double
+}
+
+private external interface WasmPdfLink : JsAny {
+    val boundCount: Int
+    fun bound(index: Int): WasmPdfQuad?
+    val targetType: Int
+    val actionType: Int
+    val destination: WasmPdfDestination?
+    val value: String?
+}
+
+private external interface WasmPdfLinks : JsAny {
+    val count: Int
+    fun link(index: Int): WasmPdfLink?
 }
 
 private external interface WasmPdfiumAdapter : JsAny {
@@ -81,6 +120,11 @@ private external interface WasmPdfiumAdapter : JsAny {
         startCharacterIndex: Int,
         characterCount: Int,
     ): String?
+
+    fun links(
+        handle: Int,
+        pageIndex: Int,
+    ): WasmPdfLinks?
 }
 
 internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
@@ -192,6 +236,58 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                 startCharacterIndex,
                 characterCount,
             )
+
+        override fun links(
+            handle: Int,
+            pageIndex: Int,
+        ): List<WebPdfLink>? {
+            val result = adapter().links(handle, pageIndex) ?: return null
+            return List(result.count) { index ->
+                val link = checkNotNull(result.link(index))
+                WebPdfLink(
+                    bounds =
+                        List(link.boundCount) { boundIndex ->
+                            val quad =
+                                checkNotNull(link.bound(boundIndex))
+                            WebPdfQuad(
+                                quad.x1,
+                                quad.y1,
+                                quad.x2,
+                                quad.y2,
+                                quad.x3,
+                                quad.y3,
+                                quad.x4,
+                                quad.y4,
+                            )
+                        },
+                    targetType = link.targetType,
+                    actionType = link.actionType,
+                    destination =
+                        link.destination?.let { destination ->
+                            WebPdfDestination(
+                                pageIndex = destination.pageIndex,
+                                viewMode = destination.viewMode,
+                                parameters =
+                                    List(destination.parameterCount) {
+                                        when (it) {
+                                            0 -> destination.parameter0
+                                            1 -> destination.parameter1
+                                            2 -> destination.parameter2
+                                            else -> destination.parameter3
+                                        }
+                                    },
+                                hasX = destination.hasX,
+                                x = destination.x,
+                                hasY = destination.hasY,
+                                y = destination.y,
+                                hasZoom = destination.hasZoom,
+                                zoom = destination.zoom,
+                            )
+                        },
+                    value = link.value,
+                )
+            }
+        }
     }
 
 private fun adapter(): WasmPdfiumAdapter =
