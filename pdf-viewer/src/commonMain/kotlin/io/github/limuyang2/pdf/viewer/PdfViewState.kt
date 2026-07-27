@@ -20,7 +20,11 @@ class PdfViewState internal constructor(
     val listState: LazyListState,
     val horizontalScrollState: ScrollState,
     initialZoom: Float,
+    initialMaximumZoom: Float = DEFAULT_MAX_ZOOM,
 ) {
+    private var maximumZoom: Float =
+        validateMaximumZoom(initialMaximumZoom)
+
     var zoom: Float by mutableFloatStateOf(validateZoom(initialZoom))
         private set
 
@@ -64,11 +68,24 @@ class PdfViewState internal constructor(
         renderCache.clear()
     }
 
-    internal fun bind(document: PdfDocument) {
+    internal fun bind(
+        document: PdfDocument,
+        maximumZoom: Float,
+    ) {
+        updateMaximumZoom(maximumZoom)
         if (cachedDocument !== document) {
             cachedDocument = document
             clearRenderCache()
         }
+    }
+
+    internal fun updateMaximumZoom(maximumZoom: Float) {
+        val validatedMaximumZoom = validateMaximumZoom(maximumZoom)
+        if (this.maximumZoom == validatedMaximumZoom) {
+            return
+        }
+        this.maximumZoom = validatedMaximumZoom
+        zoom = zoom.coerceAtMost(validatedMaximumZoom)
     }
 
     internal fun cachedImage(
@@ -92,9 +109,14 @@ class PdfViewState internal constructor(
         )
     }
 
+    private fun validateZoom(zoom: Float): Float {
+        require(zoom.isFinite()) { "zoom must be finite" }
+        return zoom.coerceIn(MIN_ZOOM, maximumZoom)
+    }
+
     internal companion object {
         const val MIN_ZOOM: Float = 1f
-        const val MAX_ZOOM: Float = 4f
+        const val DEFAULT_MAX_ZOOM: Float = 4f
         private const val BYTES_PER_PIXEL: Long = 4
         private const val MAX_CACHED_BITMAP_BYTES: Long = 64L * 1024 * 1024
 
@@ -106,6 +128,7 @@ class PdfViewState internal constructor(
                         it.listState.firstVisibleItemScrollOffset,
                         it.horizontalScrollState.value,
                         it.zoom,
+                        it.maximumZoom,
                     )
                 },
                 restore = {
@@ -118,13 +141,16 @@ class PdfViewState internal constructor(
                         horizontalScrollState =
                             ScrollState(initial = it[2].toInt()),
                         initialZoom = it[3].toFloat(),
+                        initialMaximumZoom = it[4].toFloat(),
                     )
                 },
             )
 
-        private fun validateZoom(zoom: Float): Float {
-            require(zoom.isFinite()) { "zoom must be finite" }
-            return zoom.coerceIn(MIN_ZOOM, MAX_ZOOM)
+        private fun validateMaximumZoom(maximumZoom: Float): Float {
+            require(maximumZoom.isFinite() && maximumZoom >= MIN_ZOOM) {
+                "maximumZoom must be finite and at least $MIN_ZOOM"
+            }
+            return maximumZoom
         }
     }
 }

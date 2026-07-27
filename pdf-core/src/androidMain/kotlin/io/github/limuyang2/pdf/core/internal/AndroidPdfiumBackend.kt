@@ -31,7 +31,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
     override val capabilities: PdfCapabilities =
         PdfCapabilities(
             text = true,
-            search = false,
+            search = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -265,7 +265,14 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
-    ): List<PdfSearchMatch> = unsupported("text search on Android")
+    ): List<PdfSearchMatch> =
+        AndroidPdfiumNative.nativeSearch(
+            handle = document.value,
+            pageIndex = pageIndex,
+            query = query,
+            flags = androidPdfiumSearchFlags(options),
+        )?.map(::androidPdfSearchMatch)
+            ?: throw PdfPageException(pageIndex)
 
     override fun links(
         document: NativeDocumentHandle,
@@ -340,6 +347,45 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         )
     }
 
+    private fun androidPdfSearchMatch(
+        match: AndroidNativePdfSearchMatch,
+    ): PdfSearchMatch {
+        require(match.bounds.size % SEARCH_RECT_VALUE_COUNT == 0) {
+            "The Android PDFium bridge returned invalid search bounds"
+        }
+        val bounds =
+            buildList(match.bounds.size / SEARCH_RECT_VALUE_COUNT) {
+                var offset = 0
+                while (offset < match.bounds.size) {
+                    add(
+                        PdfRect(
+                            left = match.bounds[offset],
+                            bottom = match.bounds[offset + 1],
+                            right = match.bounds[offset + 2],
+                            top = match.bounds[offset + 3],
+                        ),
+                    )
+                    offset += SEARCH_RECT_VALUE_COUNT
+                }
+            }
+        return PdfSearchMatch(
+            range =
+                PdfTextRange(
+                    startCharacterIndex = match.startCharacterIndex,
+                    characterCount = match.characterCount,
+                ),
+            bounds = bounds,
+        )
+    }
+
+    private fun androidPdfiumSearchFlags(options: PdfSearchOptions): Int {
+        var flags = 0
+        if (options.matchCase) flags = flags or SEARCH_MATCH_CASE
+        if (options.matchWholeWord) flags = flags or SEARCH_MATCH_WHOLE_WORD
+        if (options.consecutive) flags = flags or SEARCH_CONSECUTIVE
+        return flags
+    }
+
     private fun pdfRotation(value: Int): PdfRotation =
         when (value) {
             0 -> PdfRotation.Degrees0
@@ -372,4 +418,8 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
 
     private const val LINK_QUAD_VALUE_COUNT: Int = 8
     private const val DESTINATION_VALUE_COUNT: Int = 13
+    private const val SEARCH_RECT_VALUE_COUNT: Int = 4
+    private const val SEARCH_MATCH_CASE: Int = 1 shl 0
+    private const val SEARCH_MATCH_WHOLE_WORD: Int = 1 shl 1
+    private const val SEARCH_CONSECUTIVE: Int = 1 shl 2
 }

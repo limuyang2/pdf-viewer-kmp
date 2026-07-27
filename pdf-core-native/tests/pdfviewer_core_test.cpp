@@ -91,6 +91,49 @@ int main(int argc, char** argv) {
     return Fail("text extraction failed");
   }
 
+  const uint16_t query[] = {text[0], 0};
+  pdfv_search_result_t* search_result = nullptr;
+  if (pdfv_search_text_utf16(
+          document, 0, query, 0, &search_result) != PDFV_OK ||
+      !search_result) {
+    pdfv_close_document(document);
+    pdfv_destroy();
+    return Fail("text search failed");
+  }
+  size_t match_count = 0;
+  size_t rect_count = 0;
+  if (pdfv_get_search_result_counts(
+          search_result, &match_count, &rect_count) != PDFV_OK ||
+      match_count == 0 || rect_count == 0) {
+    pdfv_destroy_search_result(search_result);
+    pdfv_close_document(document);
+    pdfv_destroy();
+    return Fail("text search result counts failed");
+  }
+  pdfv_search_match_t first_match{};
+  if (pdfv_get_search_match(search_result, 0, &first_match) != PDFV_OK ||
+      first_match.character_count <= 0 || first_match.rect_count == 0) {
+    pdfv_destroy_search_result(search_result);
+    pdfv_close_document(document);
+    pdfv_destroy();
+    return Fail("text search match failed");
+  }
+  pdfv_rect_t first_rect{};
+  if (pdfv_get_search_rect(
+          search_result, first_match.first_rect, &first_rect) != PDFV_OK ||
+      first_rect.left > first_rect.right ||
+      first_rect.bottom > first_rect.top) {
+    pdfv_destroy_search_result(search_result);
+    pdfv_close_document(document);
+    pdfv_destroy();
+    return Fail("text search rectangle failed");
+  }
+  if (pdfv_destroy_search_result(search_result) != PDFV_OK) {
+    pdfv_close_document(document);
+    pdfv_destroy();
+    return Fail("destroying text search result failed");
+  }
+
   pdfv_render_request_t request{};
   request.width = 32;
   request.height = 32;

@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_title">PDF Viewer Demo</string>
+    <string name="sample_dummy_title">Dummy · 3 pages</string>
+    <string name="sample_dummy_description">Basic three-page PDF</string>
+    <string name="sample_rich_title">Text, images &amp; links · 2 pages</string>
+    <string name="sample_rich_description">PDF containing text, images, and links</string>
+    <string name="sample_broken_title">Broken PDF · loading error</string>
+    <string name="sample_broken_description">Intentionally corrupted PDF for testing the loading error screen</string>
+    <string name="page_load_failed">Page %1$d failed to load</string>
+    <string name="back">Back</string>
+    <string name="pdf_load_failed">Failed to load PDF</string>
+    <string name="unknown_error">Unknown error</string>
+</resources>

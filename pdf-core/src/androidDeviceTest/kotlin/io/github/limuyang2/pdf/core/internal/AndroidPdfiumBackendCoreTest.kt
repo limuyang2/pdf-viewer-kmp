@@ -4,6 +4,7 @@ import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfPixelFormat
 import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
+import io.github.limuyang2.pdf.core.PdfSearchOptions
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
 import io.github.limuyang2.pdf.core.contract.createSinglePageTestPdf
@@ -69,6 +70,54 @@ internal class AndroidPdfiumBackendCoreTest {
                 )
             try {
                 assertEquals(1, document.pageCount)
+            } finally {
+                document.close()
+            }
+        }
+
+    @Test
+    fun searchesTextAndReturnsPdfBounds() =
+        runTest {
+            val document =
+                PdfViewer.open(
+                    PdfSource.Bytes(
+                        createSinglePageTestPdf(
+                            "aaaaaaaaaa Android android Androids",
+                        ),
+                    ),
+                )
+            try {
+                val page = document[0]
+
+                assertEquals(2, page.search("aaaa").size)
+                assertEquals(
+                    7,
+                    page.search(
+                        query = "aaaa",
+                        options = PdfSearchOptions(consecutive = true),
+                    ).size,
+                )
+                assertEquals(
+                    1,
+                    page.search(
+                        query = "android",
+                        options = PdfSearchOptions(matchCase = true),
+                    ).size,
+                )
+                val wholeWordMatches =
+                    page.search(
+                        query = "android",
+                        options = PdfSearchOptions(matchWholeWord = true),
+                    )
+                assertEquals(2, wholeWordMatches.size)
+                wholeWordMatches.forEach { match ->
+                    assertEquals(7, match.range.characterCount)
+                    assertTrue(match.bounds.isNotEmpty())
+                    match.bounds.forEach { bounds ->
+                        assertTrue(bounds.left <= bounds.right)
+                        assertTrue(bounds.bottom <= bounds.top)
+                    }
+                }
             } finally {
                 document.close()
             }

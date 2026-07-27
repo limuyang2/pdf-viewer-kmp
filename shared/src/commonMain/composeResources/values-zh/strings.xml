@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_title">PDF 阅读器示例</string>
+    <string name="sample_dummy_title">示例 PDF · 3 页</string>
+    <string name="sample_dummy_description">基础三页 PDF</string>
+    <string name="sample_rich_title">文本、图片和链接 · 2 页</string>
+    <string name="sample_rich_description">包含文本、图片和链接的 PDF</string>
+    <string name="sample_broken_title">损坏的 PDF · 加载错误</string>
+    <string name="sample_broken_description">故意损坏的 PDF，用于测试加载错误页面</string>
+    <string name="page_load_failed">第 %1$d 页加载失败</string>
+    <string name="back">返回</string>
+    <string name="pdf_load_failed">PDF 加载失败</string>
+    <string name="unknown_error">未知错误</string>
+</resources>

@@ -14,9 +14,10 @@
 extern "C" {
 #endif
 
-#define PDFV_ABI_VERSION 2u
+#define PDFV_ABI_VERSION 3u
 
 typedef struct pdfv_document pdfv_document_t;
+typedef struct pdfv_search_result pdfv_search_result_t;
 
 typedef enum pdfv_status {
   PDFV_OK = 0,
@@ -39,6 +40,12 @@ typedef enum pdfv_render_flags {
   PDFV_RENDER_GRAYSCALE = 1u << 1,
   PDFV_RENDER_LCD_TEXT = 1u << 2,
 } pdfv_render_flags_t;
+
+typedef enum pdfv_search_flags {
+  PDFV_SEARCH_MATCH_CASE = 1u << 0,
+  PDFV_SEARCH_MATCH_WHOLE_WORD = 1u << 1,
+  PDFV_SEARCH_CONSECUTIVE = 1u << 2,
+} pdfv_search_flags_t;
 
 typedef struct pdfv_rect {
   double left;
@@ -113,6 +120,13 @@ typedef struct pdfv_link {
   size_t string_length;
 } pdfv_link_t;
 
+typedef struct pdfv_search_match {
+  int32_t start_character_index;
+  int32_t character_count;
+  size_t first_rect;
+  size_t rect_count;
+} pdfv_search_match_t;
+
 PDFV_EXPORT uint32_t pdfv_get_abi_version(void);
 
 PDFV_EXPORT pdfv_status_t pdfv_initialize(void);
@@ -168,6 +182,34 @@ PDFV_EXPORT pdfv_status_t pdfv_extract_text_utf16(
     uint16_t* buffer,
     size_t buffer_units,
     size_t* required_units);
+
+// The query must be a non-empty, NUL-terminated UTF-16 string.
+// The returned result owns its matches and rectangles independently of the
+// document and must be released with pdfv_destroy_search_result().
+PDFV_EXPORT pdfv_status_t pdfv_search_text_utf16(
+    pdfv_document_t* document,
+    int32_t page_index,
+    const uint16_t* query_utf16,
+    uint32_t flags,
+    pdfv_search_result_t** result);
+
+PDFV_EXPORT pdfv_status_t pdfv_get_search_result_counts(
+    pdfv_search_result_t* result,
+    size_t* match_count,
+    size_t* rect_count);
+
+PDFV_EXPORT pdfv_status_t pdfv_get_search_match(
+    pdfv_search_result_t* result,
+    size_t match_index,
+    pdfv_search_match_t* match);
+
+PDFV_EXPORT pdfv_status_t pdfv_get_search_rect(
+    pdfv_search_result_t* result,
+    size_t rect_index,
+    pdfv_rect_t* rect);
+
+PDFV_EXPORT pdfv_status_t pdfv_destroy_search_result(
+    pdfv_search_result_t* result);
 
 // Call once with null output buffers to obtain required element counts, then
 // call again with buffers of at least those sizes. UTF-8 strings are packed

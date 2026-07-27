@@ -40,6 +40,9 @@ class PdfPage internal constructor(
     ): List<PdfSearchMatch> {
         document.requireOpen()
         require(query.isNotEmpty()) { "query must not be empty" }
+        require('\u0000' !in query) {
+            "query must not contain a null character"
+        }
         return document.withOpenDocument { backend, handle ->
             backend.search(handle, index, query, options).toList()
         }

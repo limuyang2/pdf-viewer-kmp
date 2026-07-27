@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateCentroid
-import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -78,6 +77,33 @@ import kotlin.time.Duration.Companion.milliseconds
  * [pageLoadingContent] is shown while page information or imagery is
  * loading. [pageErrorContent] receives the original failure; when it is
  * `null`, [PdfView] displays its built-in error message.
+ *
+ * @param document The open PDF document to display. The caller remains
+ * responsible for closing it.
+ * @param modifier The modifier applied to the PDF viewport.
+ * @param state The state that controls scrolling, zoom, and rendered-page
+ * caching.
+ * @param pageSpacing The vertical space between adjacent pages.
+ * @param pagePadding The padding around the page list.
+ * @param pageColor The background color shown behind each rendered page.
+ * @param maxRenderDimension The maximum width or height, in pixels, of a
+ * rendered page bitmap.
+ * @param onPageError Called when page information or page rendering fails.
+ * @param onLinkClick Called before built-in link handling. Return `true` to
+ * consume the link.
+ * @param pageBorder The border drawn around each page, or `null` for no
+ * border.
+ * @param pageLoadingContent Content displayed while a page is loading.
+ * @param pageErrorContent Content displayed when a page fails to load or
+ * render. When `null`, the built-in error content is used.
+ * @param onUriLinkClick Handles URI links. Pass `null` to ignore URI links.
+ * @param onLinkError Called when link activation fails.
+ * @param maxZoom The maximum zoom multiplier for gesture-driven and
+ * programmatic zoom while this view is bound to [state]. It must be finite
+ * and at least `1f`.
+ * @param gestureZoomEnabled Whether multi-touch zoom gestures are enabled.
+ * Programmatic zoom through [state] remains available when disabled. Pan
+ * deltas are ignored during a multi-touch zoom to avoid competing with scroll.
  */
 @Composable
 fun PdfView(
@@ -95,6 +121,8 @@ fun PdfView(
     pageErrorContent: (@Composable BoxScope.(pageIndex: Int, error: Throwable) -> Unit)? = null,
     onUriLinkClick: ((uri: String) -> Unit)? = DefaultOnUriLinkClick,
     onLinkError: (pageIndex: Int, link: PdfLink, error: Throwable) -> Unit = { _, _, _ -> },
+    maxZoom: Float = PdfViewState.DEFAULT_MAX_ZOOM,
+    gestureZoomEnabled: Boolean = true,
 ) {
     require(!document.isClosed) {
         "PdfView requires an open PdfDocument"
@@ -104,8 +132,11 @@ fun PdfView(
     require(maxRenderDimension > 0) {
         "maxRenderDimension must be positive"
     }
+    require(maxZoom.isFinite() && maxZoom >= PdfViewState.MIN_ZOOM) {
+        "maxZoom must be finite and at least ${PdfViewState.MIN_ZOOM}"
+    }
 
-    state.bind(document)
+    state.bind(document, maxZoom)
     var viewportWidthPixels by remember { mutableIntStateOf(0) }
     var settledRenderWidthPixels by
         remember(maxRenderDimension) {
@@ -161,7 +192,6 @@ fun PdfView(
     fun applyTransform(
         centroid: Offset,
         zoomChange: Float,
-        panChange: Offset,
     ) {
         if (!zoomChange.isFinite() || zoomChange <= 0f) {
             return
@@ -179,7 +209,7 @@ fun PdfView(
                         state.horizontalScrollState.value.toFloat(),
                     centroid = centroid.x,
                     zoomChange = appliedZoom,
-                    panChange = panChange.x,
+                    panChange = 0f,
                 ),
             )
             state.listState.dispatchRawDelta(
@@ -189,7 +219,7 @@ fun PdfView(
                             .toFloat(),
                     centroid = centroid.y,
                     zoomChange = appliedZoom,
-                    panChange = panChange.y,
+                    panChange = 0f,
                 ),
             )
         }
@@ -200,6 +230,7 @@ fun PdfView(
             modifier
                 .onSizeChanged { viewportWidthPixels = it.width }
                 .pdfTransformGestures(
+                    enabled = gestureZoomEnabled,
                     gestureKey = state,
                     onTransformStarted = {
                         transformInProgress = true
@@ -287,48 +318,52 @@ fun PdfView(
 }
 
 private fun Modifier.pdfTransformGestures(
+    enabled: Boolean,
     gestureKey: Any?,
     onTransformStarted: () -> Unit,
-    onTransform: (centroid: Offset, zoomChange: Float, panChange: Offset) -> Unit,
+    onTransform: (centroid: Offset, zoomChange: Float) -> Unit,
     onTransformStopped: () -> Unit,
 ): Modifier =
-    pointerInput(gestureKey) {
-        awaitEachGesture {
-            var claimedByTransform = false
-            var transforming = false
-            var hasPressedPointers: Boolean
-            try {
-                do {
-                    val event =
-                        awaitPointerEvent(PointerEventPass.Initial)
-                    val pressedCount =
-                        event.changes.count { it.pressed }
+    if (!enabled) {
+        this
+    } else {
+        pointerInput(gestureKey, enabled) {
+            awaitEachGesture {
+                var claimedByTransform = false
+                var transforming = false
+                var hasPressedPointers: Boolean
+                try {
+                    do {
+                        val event =
+                            awaitPointerEvent(PointerEventPass.Initial)
+                        val pressedCount =
+                            event.changes.count { it.pressed }
 
-                    if (pressedCount >= MIN_TRANSFORM_POINTERS) {
-                        claimedByTransform = true
-                        if (!transforming) {
-                            transforming = true
-                            onTransformStarted()
+                        if (pressedCount >= MIN_TRANSFORM_POINTERS) {
+                            claimedByTransform = true
+                            if (!transforming) {
+                                transforming = true
+                                onTransformStarted()
+                            }
+                            onTransform(
+                                event.calculateCentroid(useCurrent = false),
+                                event.calculateZoom(),
+                            )
+                        } else if (transforming) {
+                            transforming = false
+                            onTransformStopped()
                         }
-                        onTransform(
-                            event.calculateCentroid(useCurrent = false),
-                            event.calculateZoom(),
-                            event.calculatePan(),
-                        )
-                    } else if (transforming) {
-                        transforming = false
+
+                        if (claimedByTransform) {
+                            event.changes.forEach { it.consume() }
+                        }
+                        hasPressedPointers =
+                            event.changes.any { it.pressed }
+                    } while (hasPressedPointers)
+                } finally {
+                    if (transforming) {
                         onTransformStopped()
                     }
-
-                    if (claimedByTransform) {
-                        event.changes.forEach { it.consume() }
-                    }
-                    hasPressedPointers =
-                        event.changes.any { it.pressed }
-                } while (hasPressedPointers)
-            } finally {
-                if (transforming) {
-                    onTransformStopped()
                 }
             }
         }

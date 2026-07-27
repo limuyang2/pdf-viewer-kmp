@@ -52,11 +52,24 @@ internal object AndroidPdfiumNative {
         characterCount: Int,
     ): String?
 
+    external fun nativeSearch(
+        handle: Long,
+        pageIndex: Int,
+        query: String,
+        flags: Int,
+    ): Array<AndroidNativePdfSearchMatch>?
+
     external fun nativeLinks(
         handle: Long,
         pageIndex: Int,
     ): Array<AndroidNativePdfLink>?
 }
+
+internal data class AndroidNativePdfSearchMatch(
+    val startCharacterIndex: Int,
+    val characterCount: Int,
+    val bounds: DoubleArray,
+)
 
 internal data class AndroidNativePdfLink(
     val bounds: DoubleArray,

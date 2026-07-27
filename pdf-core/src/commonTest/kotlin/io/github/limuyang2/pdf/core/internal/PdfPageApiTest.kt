@@ -104,4 +104,20 @@ class PdfPageApiTest {
                 document.close()
             }
         }
+
+    @Test
+    fun searchQueryContainingNullIsRejectedBeforeBackendCall() =
+        runTest {
+            withFakeBackend { backend ->
+                val document = PdfViewer.open(PdfSource.Bytes(byteArrayOf(1)))
+                val page = document[0]
+
+                assertFailsWith<IllegalArgumentException> {
+                    page.search("needle\u0000suffix")
+                }
+                assertNull(backend.calls.singleOrNull { it.startsWith("search:") })
+
+                document.close()
+            }
+        }
 }

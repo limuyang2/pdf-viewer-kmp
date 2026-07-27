@@ -13,6 +13,22 @@ constexpr jsize kOpenResultSize = 4;
 constexpr jsize kPageInfoResultSize = 8;
 constexpr jsize kDocumentInfoResultSize = 7;
 constexpr jsize kDestinationResultSize = 13;
+constexpr size_t kSearchRectValueCount = 4;
+
+class ScopedSearchResult {
+ public:
+  explicit ScopedSearchResult(pdfv_search_result_t* result) : result_(result) {}
+  ~ScopedSearchResult() {
+    if (result_) {
+      pdfv_destroy_search_result(result_);
+    }
+  }
+
+  pdfv_search_result_t* get() const { return result_; }
+
+ private:
+  pdfv_search_result_t* result_;
+};
 
 pdfv_document_t* FromHandle(jlong handle) {
   return reinterpret_cast<pdfv_document_t*>(static_cast<intptr_t>(handle));
@@ -349,6 +365,130 @@ Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeExtractText
         FromHandle(handle), page_index, start_character_index,
         character_count, buffer, units, required);
   });
+}
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeSearch(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jint page_index,
+    jstring query,
+    jint flags) {
+  try {
+    if (!query || flags < 0) {
+      return nullptr;
+    }
+    const jsize query_length = env->GetStringLength(query);
+    if (query_length <= 0) {
+      return nullptr;
+    }
+    std::vector<uint16_t> query_utf16(
+        static_cast<size_t>(query_length) + 1);
+    env->GetStringRegion(
+        query, 0, query_length,
+        reinterpret_cast<jchar*>(query_utf16.data()));
+    if (env->ExceptionCheck()) {
+      return nullptr;
+    }
+    for (jsize index = 0; index < query_length; ++index) {
+      if (query_utf16[static_cast<size_t>(index)] == 0) {
+        return nullptr;
+      }
+    }
+
+    pdfv_search_result_t* raw_search_result = nullptr;
+    if (pdfv_search_text_utf16(
+            FromHandle(handle), page_index, query_utf16.data(),
+            static_cast<uint32_t>(flags), &raw_search_result) != PDFV_OK ||
+        !raw_search_result) {
+      return nullptr;
+    }
+    ScopedSearchResult search_result(raw_search_result);
+
+    size_t match_count = 0;
+    size_t rect_count = 0;
+    if (pdfv_get_search_result_counts(
+            search_result.get(), &match_count, &rect_count) != PDFV_OK ||
+        match_count >
+            static_cast<size_t>(std::numeric_limits<jsize>::max()) ||
+        rect_count >
+            static_cast<size_t>(std::numeric_limits<jsize>::max()) /
+                kSearchRectValueCount) {
+      return nullptr;
+    }
+
+    jclass match_class = env->FindClass(
+        "io/github/limuyang2/pdf/core/internal/AndroidNativePdfSearchMatch");
+    if (!match_class) {
+      return nullptr;
+    }
+    jmethodID constructor =
+        env->GetMethodID(match_class, "<init>", "(II[D)V");
+    if (!constructor) {
+      return nullptr;
+    }
+    jobjectArray result = env->NewObjectArray(
+        static_cast<jsize>(match_count), match_class, nullptr);
+    if (!result) {
+      return nullptr;
+    }
+
+    for (size_t match_index = 0; match_index < match_count; ++match_index) {
+      pdfv_search_match_t match{};
+      if (pdfv_get_search_match(
+              search_result.get(), match_index, &match) != PDFV_OK ||
+          match.first_rect > rect_count ||
+          match.rect_count > rect_count - match.first_rect ||
+          match.rect_count >
+              static_cast<size_t>(std::numeric_limits<jsize>::max()) /
+                  kSearchRectValueCount) {
+        return nullptr;
+      }
+
+      std::vector<jdouble> bounds(
+          match.rect_count * kSearchRectValueCount);
+      for (size_t rect_index = 0; rect_index < match.rect_count;
+           ++rect_index) {
+        pdfv_rect_t rect{};
+        if (pdfv_get_search_rect(
+                search_result.get(), match.first_rect + rect_index,
+                &rect) != PDFV_OK) {
+          return nullptr;
+        }
+        const size_t offset = rect_index * kSearchRectValueCount;
+        bounds[offset] = rect.left;
+        bounds[offset + 1] = rect.bottom;
+        bounds[offset + 2] = rect.right;
+        bounds[offset + 3] = rect.top;
+      }
+
+      jdoubleArray bounds_array =
+          env->NewDoubleArray(static_cast<jsize>(bounds.size()));
+      if (!bounds_array) {
+        return nullptr;
+      }
+      if (!bounds.empty()) {
+        env->SetDoubleArrayRegion(
+            bounds_array, 0, static_cast<jsize>(bounds.size()),
+            bounds.data());
+      }
+      jobject item = env->NewObject(
+          match_class, constructor,
+          static_cast<jint>(match.start_character_index),
+          static_cast<jint>(match.character_count), bounds_array);
+      if (!item) {
+        return nullptr;
+      }
+      env->SetObjectArrayElement(
+          result, static_cast<jsize>(match_index), item);
+      env->DeleteLocalRef(bounds_array);
+      env->DeleteLocalRef(item);
+    }
+    return result;
+  } catch (...) {
+    return nullptr;
+  }
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL

@@ -46,7 +46,20 @@ import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
 import io.github.limuyang2.pdf.viewer.PdfView
 import io.github.limuyang2.pdf.viewer.rememberPdfViewState
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import pdfdemo.shared.generated.resources.Res
+import pdfdemo.shared.generated.resources.app_title
+import pdfdemo.shared.generated.resources.back
+import pdfdemo.shared.generated.resources.page_load_failed
+import pdfdemo.shared.generated.resources.pdf_load_failed
+import pdfdemo.shared.generated.resources.sample_broken_description
+import pdfdemo.shared.generated.resources.sample_broken_title
+import pdfdemo.shared.generated.resources.sample_dummy_description
+import pdfdemo.shared.generated.resources.sample_dummy_title
+import pdfdemo.shared.generated.resources.sample_rich_description
+import pdfdemo.shared.generated.resources.sample_rich_title
+import pdfdemo.shared.generated.resources.unknown_error
 
 @Composable
 fun App() {
@@ -108,47 +121,41 @@ private fun PdfSamplesScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "PDF Viewer Demo",
+            text = stringResource(Res.string.app_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
-        Text(
-            text = "选择一个 Navigation 3 路由页面：",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
         PdfSampleButton(
-            title = "Dummy · 3 pages",
-            description = "基础三页 PDF",
+            title = stringResource(Res.string.sample_dummy_title),
+            description = stringResource(Res.string.sample_dummy_description),
             onClick = {
                 onOpenPdf(
                     PdfRoute(
-                        title = "Dummy · 3 pages",
+                        title = Res.string.sample_dummy_title,
                         resourcePath = DUMMY_PDF_RESOURCE,
                     ),
                 )
             },
         )
         PdfSampleButton(
-            title = "Text, images & links · 2 pages",
-            description = "包含文本、图片和链接的 PDF",
+            title = stringResource(Res.string.sample_rich_title),
+            description = stringResource(Res.string.sample_rich_description),
             onClick = {
                 onOpenPdf(
                     PdfRoute(
-                        title = "Text, images & links · 2 pages",
+                        title = Res.string.sample_rich_title,
                         resourcePath = SAMPLE_PDF_RESOURCE,
                     ),
                 )
             },
         )
         PdfSampleButton(
-            title = "Broken PDF · loading error",
-            description = "故意损坏的 PDF，用于测试加载错误页面",
+            title = stringResource(Res.string.sample_broken_title),
+            description = stringResource(Res.string.sample_broken_description),
             onClick = {
                 onOpenPdf(
                     PdfRoute(
-                        title = "Broken PDF · loading error",
+                        title = Res.string.sample_broken_title,
                         resourcePath = BROKEN_PDF_RESOURCE,
                     ),
                 )
@@ -216,7 +223,7 @@ private fun PdfDocumentScreen(
 
     Column(Modifier.fillMaxSize()) {
         PdfToolbar(
-            title = route.title,
+            title = stringResource(route.title),
             document = document,
             currentPage = viewState.currentPage,
             zoom = viewState.zoom,
@@ -248,7 +255,11 @@ private fun PdfDocumentScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
-                                text = "第 ${pageIndex + 1} 页加载失败",
+                                text =
+                                    stringResource(
+                                        Res.string.page_load_failed,
+                                        pageIndex + 1,
+                                    ),
                                 color = MaterialTheme.colorScheme.error,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -256,7 +267,7 @@ private fun PdfDocumentScreen(
                                 text =
                                     error.message
                                         ?: error::class.simpleName
-                                        ?: "Unknown error",
+                                        ?: stringResource(Res.string.unknown_error),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
@@ -304,7 +315,7 @@ private fun PdfToolbar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TextButton(onClick = onBack) {
-            Text("返回")
+            Text(stringResource(Res.string.back))
         }
         Text(
             text = title,
@@ -356,7 +367,7 @@ private fun PdfOpenError(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "PDF 加载失败",
+                text = stringResource(Res.string.pdf_load_failed),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 fontWeight = FontWeight.Bold,
@@ -365,7 +376,7 @@ private fun PdfOpenError(
                 text =
                     failure.message
                         ?: failure::class.simpleName
-                        ?: "Unknown error",
+                        ?: stringResource(Res.string.unknown_error),
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
         }
@@ -375,7 +386,7 @@ private fun PdfOpenError(
 private data object PdfSamplesRoute
 
 private data class PdfRoute(
-    val title: String,
+    val title: StringResource,
     val resourcePath: String,
 )
 

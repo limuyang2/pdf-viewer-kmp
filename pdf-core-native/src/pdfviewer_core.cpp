@@ -24,10 +24,16 @@ struct pdfv_document {
   }
 };
 
+struct pdfv_search_result {
+  std::vector<pdfv_search_match_t> matches;
+  std::vector<pdfv_rect_t> rects;
+};
+
 namespace {
 
 bool g_initialized = false;
 std::unordered_set<pdfv_document_t*> g_documents;
+std::unordered_set<pdfv_search_result_t*> g_search_results;
 
 class ScopedPage {
  public:
@@ -57,6 +63,21 @@ class ScopedTextPage {
 
  private:
   FPDF_TEXTPAGE page_;
+};
+
+class ScopedSearch {
+ public:
+  explicit ScopedSearch(FPDF_SCHHANDLE search) : search_(search) {}
+  ~ScopedSearch() {
+    if (search_) {
+      FPDFText_FindClose(search_);
+    }
+  }
+
+  FPDF_SCHHANDLE get() const { return search_; }
+
+ private:
+  FPDF_SCHHANDLE search_;
 };
 
 class ScopedBitmap {
@@ -96,6 +117,13 @@ pdfv_status_t MapPdfiumError(unsigned long error) {
 
 pdfv_status_t RequireDocument(pdfv_document_t* document) {
   if (!document || g_documents.find(document) == g_documents.end()) {
+    return PDFV_ERROR_CLOSED;
+  }
+  return PDFV_OK;
+}
+
+pdfv_status_t RequireSearchResult(pdfv_search_result_t* result) {
+  if (!result || g_search_results.find(result) == g_search_results.end()) {
     return PDFV_ERROR_CLOSED;
   }
   return PDFV_OK;
@@ -264,7 +292,7 @@ pdfv_status_t pdfv_destroy(void) {
     if (!g_initialized) {
       return PDFV_OK;
     }
-    if (!g_documents.empty()) {
+    if (!g_documents.empty() || !g_search_results.empty()) {
       return PDFV_ERROR_INVALID_STATE;
     }
     FPDF_DestroyLibrary();
@@ -543,6 +571,149 @@ pdfv_status_t pdfv_extract_text_utf16(pdfv_document_t* document,
     const int written =
         FPDFText_GetText(text_page.get(), start_character_index, count, buffer);
     return written == count + 1 ? PDFV_OK : PDFV_ERROR_UNKNOWN;
+  });
+}
+
+pdfv_status_t pdfv_search_text_utf16(pdfv_document_t* document,
+                                     int32_t page_index,
+                                     const uint16_t* query_utf16,
+                                     uint32_t flags,
+                                     pdfv_search_result_t** result) {
+  return Guard([&] {
+    if (RequireDocument(document) != PDFV_OK) {
+      return PDFV_ERROR_CLOSED;
+    }
+    constexpr uint32_t kSupportedFlags =
+        PDFV_SEARCH_MATCH_CASE | PDFV_SEARCH_MATCH_WHOLE_WORD |
+        PDFV_SEARCH_CONSECUTIVE;
+    if (!result) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+    *result = nullptr;
+    if (!query_utf16 || query_utf16[0] == 0 ||
+        (flags & ~kSupportedFlags) != 0) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+
+    ScopedPage page(FPDF_LoadPage(document->handle, page_index));
+    if (!page.get()) {
+      return PDFV_ERROR_PAGE;
+    }
+    ScopedTextPage text_page(FPDFText_LoadPage(page.get()));
+    if (!text_page.get()) {
+      return PDFV_ERROR_PAGE;
+    }
+
+    unsigned long pdfium_flags = 0;
+    if (flags & PDFV_SEARCH_MATCH_CASE) {
+      pdfium_flags |= FPDF_MATCHCASE;
+    }
+    if (flags & PDFV_SEARCH_MATCH_WHOLE_WORD) {
+      pdfium_flags |= FPDF_MATCHWHOLEWORD;
+    }
+    if (flags & PDFV_SEARCH_CONSECUTIVE) {
+      pdfium_flags |= FPDF_CONSECUTIVE;
+    }
+    ScopedSearch search(FPDFText_FindStart(
+        text_page.get(), query_utf16, pdfium_flags, 0));
+    if (!search.get()) {
+      return PDFV_ERROR_UNKNOWN;
+    }
+
+    auto collected = std::make_unique<pdfv_search_result_t>();
+    while (FPDFText_FindNext(search.get())) {
+      const int start_character_index =
+          FPDFText_GetSchResultIndex(search.get());
+      const int character_count = FPDFText_GetSchCount(search.get());
+      if (start_character_index < 0 || character_count <= 0) {
+        return PDFV_ERROR_UNKNOWN;
+      }
+
+      const int rect_count = FPDFText_CountRects(
+          text_page.get(), start_character_index, character_count);
+      if (rect_count < 0) {
+        return PDFV_ERROR_UNKNOWN;
+      }
+      pdfv_search_match_t match{};
+      match.start_character_index = start_character_index;
+      match.character_count = character_count;
+      match.first_rect = collected->rects.size();
+      match.rect_count = static_cast<size_t>(rect_count);
+      collected->matches.push_back(match);
+
+      for (int rect_index = 0; rect_index < rect_count; ++rect_index) {
+        double left = 0;
+        double top = 0;
+        double right = 0;
+        double bottom = 0;
+        if (!FPDFText_GetRect(text_page.get(), rect_index, &left, &top,
+                              &right, &bottom)) {
+          return PDFV_ERROR_UNKNOWN;
+        }
+        collected->rects.push_back({left, bottom, right, top});
+      }
+    }
+
+    g_search_results.insert(collected.get());
+    *result = collected.release();
+    return PDFV_OK;
+  });
+}
+
+pdfv_status_t pdfv_get_search_result_counts(pdfv_search_result_t* result,
+                                            size_t* match_count,
+                                            size_t* rect_count) {
+  return Guard([&] {
+    if (RequireSearchResult(result) != PDFV_OK) {
+      return PDFV_ERROR_CLOSED;
+    }
+    if (!match_count || !rect_count) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+    *match_count = result->matches.size();
+    *rect_count = result->rects.size();
+    return PDFV_OK;
+  });
+}
+
+pdfv_status_t pdfv_get_search_match(pdfv_search_result_t* result,
+                                    size_t match_index,
+                                    pdfv_search_match_t* match) {
+  return Guard([&] {
+    if (RequireSearchResult(result) != PDFV_OK) {
+      return PDFV_ERROR_CLOSED;
+    }
+    if (!match || match_index >= result->matches.size()) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+    *match = result->matches[match_index];
+    return PDFV_OK;
+  });
+}
+
+pdfv_status_t pdfv_get_search_rect(pdfv_search_result_t* result,
+                                   size_t rect_index,
+                                   pdfv_rect_t* rect) {
+  return Guard([&] {
+    if (RequireSearchResult(result) != PDFV_OK) {
+      return PDFV_ERROR_CLOSED;
+    }
+    if (!rect || rect_index >= result->rects.size()) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+    *rect = result->rects[rect_index];
+    return PDFV_OK;
+  });
+}
+
+pdfv_status_t pdfv_destroy_search_result(pdfv_search_result_t* result) {
+  return Guard([&] {
+    if (RequireSearchResult(result) != PDFV_OK) {
+      return PDFV_ERROR_CLOSED;
+    }
+    g_search_results.erase(result);
+    delete result;
+    return PDFV_OK;
   });
 }
 
