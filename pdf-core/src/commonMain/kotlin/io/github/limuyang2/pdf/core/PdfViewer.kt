@@ -1,9 +1,9 @@
 package io.github.limuyang2.pdf.core
 
-import io.github.limuyang2.pdf.core.internal.PdfDocumentState
 import io.github.limuyang2.pdf.core.internal.OwnedPdfSource
-import io.github.limuyang2.pdf.core.internal.PdfiumOperation
+import io.github.limuyang2.pdf.core.internal.PdfDocumentState
 import io.github.limuyang2.pdf.core.internal.PdfiumBackendProvider
+import io.github.limuyang2.pdf.core.internal.PdfiumOperation
 import io.github.limuyang2.pdf.core.internal.PdfiumRuntime
 
 /**
@@ -19,7 +19,7 @@ public object PdfViewer {
      * The source is closed after failure, cancellation, or closure of the
      * returned document.
      */
-    public suspend fun open(
+    suspend fun open(
         source: PdfSource,
         password: String? = null,
     ): PdfDocument {

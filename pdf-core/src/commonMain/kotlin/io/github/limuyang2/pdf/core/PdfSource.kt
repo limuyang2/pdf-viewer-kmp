@@ -28,7 +28,7 @@ public sealed interface PdfSource : AutoCloseable {
     public interface RandomAccess : PdfSource {
         public val size: Long
 
-        public fun read(
+        fun read(
             offset: Long,
             destination: ByteArray,
             destinationOffset: Int,

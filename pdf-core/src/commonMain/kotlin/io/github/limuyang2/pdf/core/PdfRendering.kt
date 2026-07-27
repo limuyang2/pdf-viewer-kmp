@@ -17,9 +17,9 @@ public interface PdfBitmap : AutoCloseable {
     public val format: PdfPixelFormat
     public val isClosed: Boolean
 
-    public fun copyPixels(): ByteArray
+    fun copyPixels(): ByteArray
 
-    public fun copyPixels(
+    fun copyPixels(
         destination: ByteArray,
         destinationOffset: Int = 0,
     )

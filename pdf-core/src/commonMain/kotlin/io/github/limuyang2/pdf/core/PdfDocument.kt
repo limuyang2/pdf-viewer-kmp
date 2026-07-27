@@ -19,28 +19,28 @@ public class PdfDocument internal constructor(
     public val isClosed: Boolean
         get() = state.isClosed
 
-    public operator fun get(pageIndex: Int): PdfPage {
+    operator fun get(pageIndex: Int): PdfPage {
         state.requireHandle()
         requirePageIndex(pageIndex)
         return PdfPage(this, pageIndex)
     }
 
-    public suspend fun information(): PdfDocumentInfo =
+    suspend fun information(): PdfDocumentInfo =
         withOpenDocument { backend, document ->
             backend.documentInformation(document)
         }
 
-    public suspend fun metadata(): PdfMetadata =
+    suspend fun metadata(): PdfMetadata =
         withOpenDocument { backend, document ->
             backend.metadata(document)
         }
 
-    public suspend fun bookmarks(): List<PdfBookmark> =
+    suspend fun bookmarks(): List<PdfBookmark> =
         withOpenDocument { backend, document ->
             backend.bookmarks(document).toList()
         }
 
-    public suspend fun pageLabel(pageIndex: Int): String? {
+    suspend fun pageLabel(pageIndex: Int): String? {
         requireOpen()
         requirePageIndex(pageIndex)
         return withOpenDocument { backend, document ->
@@ -56,7 +56,7 @@ public class PdfDocument internal constructor(
      * Closes this document without blocking the calling thread while waiting
      * for an active PDFium operation to finish.
      */
-    public suspend fun closeAndAwait() {
+    suspend fun closeAndAwait() {
         state.closeAndAwait()
     }
 

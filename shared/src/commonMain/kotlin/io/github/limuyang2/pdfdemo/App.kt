@@ -48,7 +48,7 @@ import io.github.limuyang2.pdf.viewer.rememberPdfViewState
 import pdfdemo.shared.generated.resources.Res
 
 @Composable
-public fun App() {
+fun App() {
     MaterialTheme {
         val backStack =
             remember {

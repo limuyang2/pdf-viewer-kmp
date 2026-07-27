@@ -7,34 +7,34 @@ public class PdfPage internal constructor(
     public val document: PdfDocument,
     public val index: Int,
 ) {
-    public suspend fun information(): PdfPageInfo =
+    suspend fun information(): PdfPageInfo =
         document.withOpenDocument { backend, handle ->
             backend.pageInformation(handle, index)
         }
 
-    public suspend fun render(request: PdfRenderRequest): PdfBitmap =
+    suspend fun render(request: PdfRenderRequest): PdfBitmap =
         document.withOpenDocument(onCancelled = PdfBitmap::close) { backend, handle ->
             backend.render(handle, index, request)
         }
 
-    public suspend fun thumbnail(maximumSize: PdfPixelSize): PdfBitmap? =
+    suspend fun thumbnail(maximumSize: PdfPixelSize): PdfBitmap? =
         document.withOpenDocument(
             onCancelled = { bitmap -> bitmap?.close() },
         ) { backend, handle ->
             backend.thumbnail(handle, index, maximumSize)
         }
 
-    public suspend fun extractText(range: PdfTextRange? = null): String =
+    suspend fun extractText(range: PdfTextRange? = null): String =
         document.withOpenDocument { backend, handle ->
             backend.extractText(handle, index, range)
         }
 
-    public suspend fun textLayout(): PdfTextLayout =
+    suspend fun textLayout(): PdfTextLayout =
         document.withOpenDocument { backend, handle ->
             backend.textLayout(handle, index)
         }
 
-    public suspend fun search(
+    suspend fun search(
         query: String,
         options: PdfSearchOptions = PdfSearchOptions(),
     ): List<PdfSearchMatch> {
@@ -45,7 +45,7 @@ public class PdfPage internal constructor(
         }
     }
 
-    public suspend fun links(): List<PdfLink> =
+    suspend fun links(): List<PdfLink> =
         document.withOpenDocument { backend, handle ->
             backend.links(handle, index).toList()
         }

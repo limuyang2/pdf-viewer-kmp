@@ -82,7 +82,7 @@ public enum class PdfRotation(
     ;
 
     public companion object {
-        public fun fromDegrees(degrees: Int): PdfRotation =
+        fun fromDegrees(degrees: Int): PdfRotation =
             when (degrees) {
                 0 -> Degrees0
                 90 -> Degrees90

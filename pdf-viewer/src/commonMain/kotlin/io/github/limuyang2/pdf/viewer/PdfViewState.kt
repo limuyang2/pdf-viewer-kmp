@@ -31,18 +31,18 @@ public class PdfViewState internal constructor(
     private val renderCache =
         PdfRenderCache<ImageBitmap>(MAX_CACHED_BITMAP_BYTES)
 
-    public fun updateZoom(zoom: Float) {
+    fun updateZoom(zoom: Float) {
         this.zoom = validateZoom(zoom)
     }
 
-    public fun zoomBy(factor: Float) {
+    fun zoomBy(factor: Float) {
         require(factor.isFinite() && factor > 0f) {
             "factor must be finite and positive"
         }
         updateZoom(zoom * factor)
     }
 
-    public suspend fun scrollToPage(
+    suspend fun scrollToPage(
         pageIndex: Int,
         scrollOffset: Int = 0,
     ) {
@@ -51,7 +51,7 @@ public class PdfViewState internal constructor(
         listState.scrollToItem(pageIndex, scrollOffset)
     }
 
-    public suspend fun animateScrollToPage(
+    suspend fun animateScrollToPage(
         pageIndex: Int,
         scrollOffset: Int = 0,
     ) {
@@ -60,7 +60,7 @@ public class PdfViewState internal constructor(
         listState.animateScrollToItem(pageIndex, scrollOffset)
     }
 
-    public fun clearRenderCache() {
+    fun clearRenderCache() {
         renderCache.clear()
     }
 
@@ -133,7 +133,7 @@ public class PdfViewState internal constructor(
  * Remembers scroll position, zoom, and the small page-render cache.
  */
 @Composable
-public fun rememberPdfViewState(
+fun rememberPdfViewState(
     initialPage: Int = 0,
     initialZoom: Float = 1f,
 ): PdfViewState {

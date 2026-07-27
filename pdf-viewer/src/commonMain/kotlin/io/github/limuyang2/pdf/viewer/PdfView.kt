@@ -70,7 +70,8 @@ import kotlin.math.roundToInt
  * consume the link. Returning `false` lets [PdfView] navigate internal
  * destinations or open URI links through the platform URI handler.
  * When [onUriLinkClick] is provided, it replaces the platform URI handler
- * for URI link targets.
+ * for URI link targets. Link activation failures are reported through
+ * [onLinkError], separately from page loading and rendering failures.
  *
  * Set [pageBorder] to `null` to render pages without a border.
  * [pageLoadingContent] is shown while page information or imagery is
@@ -78,7 +79,7 @@ import kotlin.math.roundToInt
  * `null`, [PdfView] displays its built-in error message.
  */
 @Composable
-public fun PdfView(
+fun PdfView(
     document: PdfDocument,
     modifier: Modifier = Modifier,
     state: PdfViewState = rememberPdfViewState(),
@@ -88,16 +89,18 @@ public fun PdfView(
     maxRenderDimension: Int = 4096,
     onPageError: (pageIndex: Int, error: Throwable) -> Unit = { _, _ -> },
     onLinkClick: (PdfLink) -> Boolean = { false },
-    pageBorder: BorderStroke? =
-        BorderStroke(1.dp, Color(0x22000000)),
-    pageLoadingContent:
-        @Composable BoxScope.(pageIndex: Int) -> Unit = {},
-    pageErrorContent:
-        (@Composable BoxScope.(
-            pageIndex: Int,
-            error: Throwable,
-        ) -> Unit)? = null,
+    pageBorder: BorderStroke? = BorderStroke(1.dp, Color(0x22000000)),
+    pageLoadingContent: @Composable BoxScope.(pageIndex: Int) -> Unit = {},
+    pageErrorContent: (@Composable BoxScope.(
+        pageIndex: Int,
+        error: Throwable,
+    ) -> Unit)? = null,
     onUriLinkClick: ((uri: String) -> Unit)? = null,
+    onLinkError: (
+        pageIndex: Int,
+        link: PdfLink,
+        error: Throwable,
+    ) -> Unit = { _, _, _ -> },
 ) {
     require(pageSpacing >= 0.dp) { "pageSpacing must be non-negative" }
     require(pagePadding >= 0.dp) { "pagePadding must be non-negative" }
@@ -126,8 +129,9 @@ public fun PdfView(
             is PdfLinkTarget.Internal -> {
                 val targetPage = target.destination.pageIndex
                 if (targetPage !in 0 until document.pageCount) {
-                    onPageError(
+                    onLinkError(
                         pageIndex,
+                        link,
                         IllegalArgumentException(
                             "PDF link targets invalid page $targetPage",
                         ),
@@ -146,7 +150,7 @@ public fun PdfView(
                         uriHandler.openUri(target.uri)
                     }
                 } catch (failure: Throwable) {
-                    onPageError(pageIndex, failure)
+                    onLinkError(pageIndex, link, failure)
                 }
             }
             is PdfLinkTarget.RemoteDocument,

@@ -56,10 +56,10 @@ public class PdfTextLayout internal constructor(
     public val characterCount: Int
         get() = characters.size
 
-    public operator fun get(characterIndex: Int): PdfCharacter =
+    operator fun get(characterIndex: Int): PdfCharacter =
         characters[characterIndex]
 
-    public fun bounds(range: PdfTextRange): List<PdfRect> {
+    fun bounds(range: PdfTextRange): List<PdfRect> {
         require(range.endCharacterIndexExclusive <= characterCount) {
             "range exceeds characterCount"
         }
