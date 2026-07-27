@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,7 +53,7 @@ public fun PdfView(
     modifier: Modifier = Modifier,
     state: PdfViewState = rememberPdfViewState(),
     pageSpacing: Dp = 12.dp,
-    pagePadding: Dp = 12.dp,
+    pagePadding: Dp = 0.dp,
     backgroundColor: Color = Color(0xffe5e7eb),
     pageColor: Color = Color.White,
     maxRenderDimension: Int = 4096,

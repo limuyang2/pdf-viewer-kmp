@@ -54,11 +54,13 @@ fun DocumentPreview(document: PdfDocument) {
 }
 ```
 
-`PdfView` displays a vertically scrolling page list, fits pages to the viewport
-at 100%, and supports 1x to 4x zoom through gestures or `PdfViewState`. It keeps
-a small rendered-page cache and limits either bitmap dimension to 4096 pixels
-by default. Use `scrollToPage()`, `animateScrollToPage()`, `updateZoom()`, and
-`clearRenderCache()` for external controls.
+`PdfView` displays a vertically scrolling page list, fits pages to the full
+viewport width at 100%, and supports 1x to 4x zoom through gestures or
+`PdfViewState`. Pass `pagePadding` when the viewer should retain space around
+each page. It keeps a small rendered-page cache and limits either bitmap
+dimension to 4096 pixels by default. Use `scrollToPage()`,
+`animateScrollToPage()`, `updateZoom()`, and `clearRenderCache()` for external
+controls.
 
 The caller owns the `PdfDocument` and must close it when the preview leaves the
 composition. `PdfView` closes its temporary `PdfBitmap` values but does not

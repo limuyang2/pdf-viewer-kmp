@@ -5,9 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
@@ -30,6 +34,7 @@ import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
 import io.github.limuyang2.pdf.viewer.PdfView
 import io.github.limuyang2.pdf.viewer.rememberPdfViewState
+import pdfdemo.shared.generated.resources.Res
 
 @Composable
 public fun App() {
@@ -42,7 +47,9 @@ public fun App() {
             try {
                 document =
                     PdfViewer.open(
-                        PdfSource.Bytes(createSamplePdf(pageCount = 5)),
+                        PdfSource.Bytes(
+                            Res.readBytes(SAMPLE_PDF_RESOURCE),
+                        ),
                     )
             } catch (openFailure: Throwable) {
                 failure = openFailure
@@ -56,15 +63,20 @@ public fun App() {
         }
 
         Surface(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .safeContentPadding(),
+            modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(Modifier.fillMaxSize()) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    modifier =
+                        Modifier
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Top +
+                                        WindowInsetsSides.Horizontal,
+                                ),
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -136,48 +148,5 @@ public fun App() {
     }
 }
 
-private fun createSamplePdf(pageCount: Int): ByteArray {
-    require(pageCount > 0)
-    val pageObjectNumbers = (0 until pageCount).map { 3 + it * 2 }
-    val objects = mutableListOf<String>()
-    objects += "<< /Type /Catalog /Pages 2 0 R >>"
-    objects +=
-        "<< /Type /Pages /Kids [" +
-        pageObjectNumbers.joinToString(" ") { "$it 0 R" } +
-        "] /Count $pageCount >>"
-    repeat(pageCount) { pageIndex ->
-        val pageObject = 3 + pageIndex * 2
-        val contentObject = pageObject + 1
-        val stream =
-            "BT /F1 26 Tf 72 720 Td " +
-                "(PDF Viewer KMP - Page ${pageIndex + 1}) Tj " +
-                "0 -44 Td /F1 14 Tf " +
-                "(Android / iOS / JVM / JS / Wasm) Tj ET"
-        objects +=
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] " +
-            "/Resources << /Font << /F1 ${3 + pageCount * 2} 0 R >> >> " +
-            "/Contents $contentObject 0 R >>"
-        objects +=
-            "<< /Length ${stream.length} >>\nstream\n$stream\nendstream"
-    }
-    objects += "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
-
-    val output = StringBuilder("%PDF-1.7\n")
-    val offsets = mutableListOf<Int>()
-    objects.forEachIndexed { index, body ->
-        offsets += output.length
-        output.append("${index + 1} 0 obj\n$body\nendobj\n")
-    }
-    val xrefOffset = output.length
-    output.append("xref\n0 ${objects.size + 1}\n")
-    output.append("0000000000 65535 f \n")
-    offsets.forEach { offset ->
-        output.append(offset.toString().padStart(10, '0'))
-        output.append(" 00000 n \n")
-    }
-    output.append(
-        "trailer\n<< /Size ${objects.size + 1} /Root 1 0 R >>\n" +
-            "startxref\n$xrefOffset\n%%EOF\n",
-    )
-    return output.toString().encodeToByteArray()
-}
+private const val SAMPLE_PDF_RESOURCE: String =
+    "files/pdfs/sample-text-images-links-2-pages.pdf"
