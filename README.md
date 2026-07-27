@@ -131,12 +131,18 @@ tightly packed rows.
 ## Resource ownership
 
 - Always close `PdfDocument` and `PdfBitmap`; both support idempotent `close()`.
+- `PdfDocument.close()` is synchronous and returns only after native resources
+  and the owned source are released. Use `closeAndAwait()` when waiting for an
+  active operation must not block the calling thread.
 - A `PdfPage` is a lightweight descriptor and becomes unusable when its parent
   document is closed.
+- Calling `PdfViewer.open()` transfers ownership of its `PdfSource`; the
+  source is closed after failure, cancellation, or document closure.
 - Do not mutate a `PdfSource.Bytes` array while its document is open.
 - A rendered bitmap owns its Kotlin pixel buffer and may outlive the document.
-- PDFium calls are serialized internally; callers may use the suspend API from
-  different coroutines.
+- PDFium calls are serialized internally; callers may use the public suspend
+  API from different coroutines. Backend calls do not suspend while holding
+  the process-wide PDFium gate.
 
 ## iOS integration
 

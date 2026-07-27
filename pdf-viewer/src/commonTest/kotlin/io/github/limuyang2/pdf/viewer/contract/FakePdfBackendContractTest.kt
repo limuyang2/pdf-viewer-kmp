@@ -4,6 +4,7 @@ import io.github.limuyang2.pdf.viewer.PdfBookmark
 import io.github.limuyang2.pdf.viewer.PdfCharacter
 import io.github.limuyang2.pdf.viewer.PdfColor
 import io.github.limuyang2.pdf.viewer.PdfDestination
+import io.github.limuyang2.pdf.viewer.PdfDestinationView
 import io.github.limuyang2.pdf.viewer.PdfDocumentInfo
 import io.github.limuyang2.pdf.viewer.PdfIncorrectPasswordException
 import io.github.limuyang2.pdf.viewer.PdfInvalidFormatException
@@ -44,7 +45,7 @@ private class ContractFakePdfiumBackend(
 ) : PdfiumBackend by delegate {
     private val fixturesByHandle = mutableMapOf<Long, PdfContractFixture>()
 
-    override suspend fun open(
+    override fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument {
@@ -68,7 +69,7 @@ private class ContractFakePdfiumBackend(
         delegate.close(document)
     }
 
-    override suspend fun documentInformation(
+    override fun documentInformation(
         document: NativeDocumentHandle,
     ): PdfDocumentInfo =
         PdfDocumentInfo(
@@ -84,7 +85,7 @@ private class ContractFakePdfiumBackend(
             isLinearized = false,
         )
 
-    override suspend fun metadata(
+    override fun metadata(
         document: NativeDocumentHandle,
     ): PdfMetadata =
         PdfMetadata(
@@ -114,7 +115,7 @@ private class ContractFakePdfiumBackend(
                 },
         )
 
-    override suspend fun pageLabel(
+    override fun pageLabel(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): String? =
@@ -124,7 +125,7 @@ private class ContractFakePdfiumBackend(
             null
         }
 
-    override suspend fun pageInformation(
+    override fun pageInformation(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfPageInfo =
@@ -142,13 +143,13 @@ private class ContractFakePdfiumBackend(
             )
         }
 
-    override suspend fun render(
+    override fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
     ) = FakePdfBitmap(request.outputSize)
 
-    override suspend fun thumbnail(
+    override fun thumbnail(
         document: NativeDocumentHandle,
         pageIndex: Int,
         maximumSize: PdfPixelSize,
@@ -157,7 +158,7 @@ private class ContractFakePdfiumBackend(
         else -> null
     }
 
-    override suspend fun extractText(
+    override fun extractText(
         document: NativeDocumentHandle,
         pageIndex: Int,
         range: PdfTextRange?,
@@ -170,7 +171,7 @@ private class ContractFakePdfiumBackend(
         )
     }
 
-    override suspend fun textLayout(
+    override fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfTextLayout {
@@ -214,7 +215,7 @@ private class ContractFakePdfiumBackend(
         )
     }
 
-    override suspend fun search(
+    override fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
@@ -244,7 +245,7 @@ private class ContractFakePdfiumBackend(
         return matches
     }
 
-    override suspend fun links(
+    override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): List<PdfLink> =
@@ -257,9 +258,7 @@ private class ContractFakePdfiumBackend(
                             PdfLinkTarget.Internal(
                                 PdfDestination(
                                     pageIndex = 0,
-                                    x = null,
-                                    y = null,
-                                    zoom = null,
+                                    view = PdfDestinationView.FitPage,
                                 ),
                             ),
                     ),
@@ -269,9 +268,7 @@ private class ContractFakePdfiumBackend(
                             PdfLinkTarget.Internal(
                                 PdfDestination(
                                     pageIndex = 0,
-                                    x = null,
-                                    y = null,
-                                    zoom = null,
+                                    view = PdfDestinationView.FitPage,
                                 ),
                             ),
                     ),
@@ -289,7 +286,7 @@ private class ContractFakePdfiumBackend(
             else -> emptyList()
         }
 
-    override suspend fun bookmarks(
+    override fun bookmarks(
         document: NativeDocumentHandle,
     ): List<PdfBookmark> =
         if (fixture(document) == PdfContractFixture.Bookmarks) {
@@ -313,9 +310,7 @@ private class ContractFakePdfiumBackend(
                                 destination =
                                     PdfDestination(
                                         pageIndex = 1,
-                                        x = null,
-                                        y = null,
-                                        zoom = null,
+                                        view = PdfDestinationView.FitPage,
                                     ),
                                 target = null,
                                 color = null,

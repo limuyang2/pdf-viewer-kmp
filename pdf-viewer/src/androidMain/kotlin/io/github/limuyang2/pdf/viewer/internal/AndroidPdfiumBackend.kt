@@ -10,6 +10,7 @@ import io.github.limuyang2.pdf.viewer.PdfMetadata
 import io.github.limuyang2.pdf.viewer.PdfNativeException
 import io.github.limuyang2.pdf.viewer.PdfPageException
 import io.github.limuyang2.pdf.viewer.PdfPageInfo
+import io.github.limuyang2.pdf.viewer.PdfPermissions
 import io.github.limuyang2.pdf.viewer.PdfPixelSize
 import io.github.limuyang2.pdf.viewer.PdfRect
 import io.github.limuyang2.pdf.viewer.PdfRenderRequest
@@ -21,11 +22,12 @@ import io.github.limuyang2.pdf.viewer.PdfSource
 import io.github.limuyang2.pdf.viewer.PdfTextLayout
 import io.github.limuyang2.pdf.viewer.PdfTextRange
 import io.github.limuyang2.pdf.viewer.PdfUnsupportedFeatureException
+import io.github.limuyang2.pdf.viewer.PdfVersion
 
 internal object AndroidPdfiumBackend : PdfiumBackend {
     override val capabilities: PdfCapabilities =
         PdfCapabilities(
-            text = false,
+            text = true,
             search = false,
             bookmarks = false,
             links = false,
@@ -46,7 +48,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         AndroidPdfiumNative.nativeDestroy()
     }
 
-    override suspend fun open(
+    override fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument {
@@ -67,11 +69,17 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
                     nativeErrorCode = 0,
                     message = "The Android PDFium bridge could not open the document",
                 )
-        check(result.size == 3) {
+        check(result.size == 4) {
             "The Android PDFium bridge returned an invalid open result"
         }
         val nativeHandle = result[0]
         if (nativeHandle == 0L) {
+            if (result[2] == 0L) {
+                throw PdfNativeException(
+                    nativeErrorCode = result[3].toInt(),
+                    message = "The shared PDFium bridge could not open the document",
+                )
+            }
             throw androidPdfiumOpenFailure(
                 errorCode = result[2],
                 passwordWasSupplied = password != null,
@@ -97,7 +105,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         AndroidPdfiumNative.nativeClose(document.value)
     }
 
-    override suspend fun pageInformation(
+    override fun pageInformation(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfPageInfo {
@@ -122,7 +130,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         )
     }
 
-    override suspend fun render(
+    override fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
@@ -160,48 +168,103 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         )
     }
 
-    override suspend fun documentInformation(
+    override fun documentInformation(
         document: NativeDocumentHandle,
-    ): PdfDocumentInfo = unsupported("document information on Android")
+    ): PdfDocumentInfo {
+        val values =
+            AndroidPdfiumNative.nativeDocumentInformation(document.value)
+                ?: throw PdfNativeException(
+                    nativeErrorCode = 0,
+                    message = "The shared PDFium bridge could not read document information",
+                )
+        check(values.size == 7) {
+            "The Android PDFium bridge returned invalid document information"
+        }
+        if (values[0] != 0L) {
+            throw PdfNativeException(values[0].toInt())
+        }
+        val encodedVersion = values[2].toInt()
+        return PdfDocumentInfo(
+            version =
+                if (values[1] == 0L) {
+                    null
+                } else {
+                    PdfVersion(
+                        major = encodedVersion / 10,
+                        minor = encodedVersion % 10,
+                    )
+                },
+            permissions = values[3].toULong().toPdfPermissions(),
+            securityRevision = values[4].toInt().takeIf { it >= 0 },
+            hasValidCrossReferenceTable = values[5] != 0L,
+            isLinearized =
+                when (values[6]) {
+                    0L -> false
+                    1L -> true
+                    else -> null
+                },
+        )
+    }
 
-    override suspend fun metadata(
+    override fun metadata(
         document: NativeDocumentHandle,
-    ): PdfMetadata = unsupported("document metadata on Android")
+    ): PdfMetadata {
+        fun value(tag: String): String? =
+            AndroidPdfiumNative.nativeMetadata(document.value, tag)
+                ?.takeIf(String::isNotEmpty)
+        return PdfMetadata(
+            title = value("Title"),
+            author = value("Author"),
+            subject = value("Subject"),
+            keywords = value("Keywords"),
+            creator = value("Creator"),
+            producer = value("Producer"),
+            creationDate = value("CreationDate"),
+            modificationDate = value("ModDate"),
+        )
+    }
 
-    override suspend fun bookmarks(
+    override fun bookmarks(
         document: NativeDocumentHandle,
     ): List<PdfBookmark> = unsupported("bookmarks on Android")
 
-    override suspend fun pageLabel(
+    override fun pageLabel(
         document: NativeDocumentHandle,
         pageIndex: Int,
-    ): String? = unsupported("page labels on Android")
+    ): String? =
+        AndroidPdfiumNative.nativePageLabel(document.value, pageIndex)
 
-    override suspend fun thumbnail(
+    override fun thumbnail(
         document: NativeDocumentHandle,
         pageIndex: Int,
         maximumSize: PdfPixelSize,
     ): PdfBitmap? = unsupported("embedded thumbnails on Android")
 
-    override suspend fun extractText(
+    override fun extractText(
         document: NativeDocumentHandle,
         pageIndex: Int,
         range: PdfTextRange?,
-    ): String = unsupported("text extraction on Android")
+    ): String =
+        AndroidPdfiumNative.nativeExtractText(
+            handle = document.value,
+            pageIndex = pageIndex,
+            startCharacterIndex = range?.startCharacterIndex ?: 0,
+            characterCount = range?.characterCount ?: -1,
+        ) ?: throw PdfPageException(pageIndex)
 
-    override suspend fun textLayout(
+    override fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfTextLayout = unsupported("text layout on Android")
 
-    override suspend fun search(
+    override fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
     ): List<PdfSearchMatch> = unsupported("text search on Android")
 
-    override suspend fun links(
+    override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): List<PdfLink> = unsupported("links on Android")
@@ -217,6 +280,21 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
                 message = "PDFium returned an invalid page rotation: $value",
             )
         }
+
+    private fun ULong.toPdfPermissions(): PdfPermissions {
+        fun allows(pdfBitNumber: Int): Boolean =
+            this and (1uL shl (pdfBitNumber - 1)) != 0uL
+        return PdfPermissions(
+            canPrint = allows(3),
+            canModify = allows(4),
+            canCopy = allows(5),
+            canAnnotate = allows(6),
+            canFillForms = allows(9),
+            canExtractForAccessibility = allows(10),
+            canAssemble = allows(11),
+            canPrintHighQuality = allows(12),
+        )
+    }
 
     private fun unsupported(feature: String): Nothing =
         throw PdfUnsupportedFeatureException(feature)

@@ -16,6 +16,18 @@ internal object AndroidPdfiumNative {
 
     external fun nativeClose(handle: Long)
 
+    external fun nativeDocumentInformation(handle: Long): LongArray?
+
+    external fun nativeMetadata(
+        handle: Long,
+        tag: String,
+    ): String?
+
+    external fun nativePageLabel(
+        handle: Long,
+        pageIndex: Int,
+    ): String?
+
     external fun nativePageInformation(
         handle: Long,
         pageIndex: Int,
@@ -32,4 +44,11 @@ internal object AndroidPdfiumNative {
         grayscale: Boolean,
         lcdText: Boolean,
     ): ByteArray?
+
+    external fun nativeExtractText(
+        handle: Long,
+        pageIndex: Int,
+        startCharacterIndex: Int,
+        characterCount: Int,
+    ): String?
 }

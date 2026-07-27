@@ -52,6 +52,14 @@ public class PdfDocument internal constructor(
         state.close()
     }
 
+    /**
+     * Closes this document without blocking the calling thread while waiting
+     * for an active PDFium operation to finish.
+     */
+    public suspend fun closeAndAwait() {
+        state.closeAndAwait()
+    }
+
     internal fun requireOpen() {
         state.requireHandle()
     }
@@ -64,7 +72,7 @@ public class PdfDocument internal constructor(
 
     internal suspend fun <T> withOpenDocument(
         onCancelled: (T) -> Unit = {},
-        operation: suspend (PdfiumBackend, NativeDocumentHandle) -> T,
+        operation: (PdfiumBackend, NativeDocumentHandle) -> T,
     ): T =
         io.github.limuyang2.pdf.viewer.internal.PdfiumOperation.execute(
             onCancelled = onCancelled,

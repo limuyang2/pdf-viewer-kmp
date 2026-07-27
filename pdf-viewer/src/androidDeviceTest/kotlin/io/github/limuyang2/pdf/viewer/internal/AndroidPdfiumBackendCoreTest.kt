@@ -26,9 +26,11 @@ internal class AndroidPdfiumBackendCoreTest {
             var bitmap: io.github.limuyang2.pdf.viewer.PdfBitmap? = null
             try {
                 assertEquals(1, document.pageCount)
+                assertEquals(1, document.information().version?.major)
                 val information = document[0].information()
                 assertEquals(200.0, information.size.width)
                 assertEquals(300.0, information.size.height)
+                assertEquals("Android", document[0].extractText())
 
                 val rendered =
                     document[0].render(

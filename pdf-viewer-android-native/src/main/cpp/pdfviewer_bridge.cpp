@@ -2,56 +2,22 @@
 
 #include <cstdint>
 #include <limits>
-#include <memory>
-#include <new>
 #include <string>
 #include <vector>
 
-#include "fpdf_doc.h"
-#include "fpdf_edit.h"
-#include "fpdfview.h"
+#include "pdfviewer_core.h"
 
 namespace {
 
-constexpr jlong kOpenResultSize = 3;
-constexpr jlong kPageInfoResultSize = 8;
+constexpr jsize kOpenResultSize = 4;
+constexpr jsize kPageInfoResultSize = 8;
+constexpr jsize kDocumentInfoResultSize = 7;
 
-struct Document {
-  std::vector<uint8_t> bytes;
-  FPDF_DOCUMENT handle = nullptr;
-
-  ~Document() {
-    if (handle) {
-      FPDF_CloseDocument(handle);
-    }
-  }
-};
-
-struct Page {
-  explicit Page(FPDF_PAGE value) : handle(value) {}
-  ~Page() {
-    if (handle) {
-      FPDF_ClosePage(handle);
-    }
-  }
-  FPDF_PAGE handle;
-};
-
-struct Bitmap {
-  explicit Bitmap(FPDF_BITMAP value) : handle(value) {}
-  ~Bitmap() {
-    if (handle) {
-      FPDFBitmap_Destroy(handle);
-    }
-  }
-  FPDF_BITMAP handle;
-};
-
-Document* FromHandle(jlong handle) {
-  return reinterpret_cast<Document*>(static_cast<intptr_t>(handle));
+pdfv_document_t* FromHandle(jlong handle) {
+  return reinterpret_cast<pdfv_document_t*>(static_cast<intptr_t>(handle));
 }
 
-jlong ToHandle(Document* document) {
+jlong ToHandle(pdfv_document_t* document) {
   return static_cast<jlong>(reinterpret_cast<intptr_t>(document));
 }
 
@@ -103,9 +69,10 @@ std::string ToUtf8(JNIEnv* env, jstring value) {
 }
 
 jlongArray NewOpenResult(JNIEnv* env,
-                         Document* document,
+                         pdfv_document_t* document,
                          jint page_count,
-                         unsigned long error_code) {
+                         uint32_t pdfium_error,
+                         pdfv_status_t status) {
   jlongArray result = env->NewLongArray(kOpenResultSize);
   if (!result) {
     return nullptr;
@@ -113,10 +80,40 @@ jlongArray NewOpenResult(JNIEnv* env,
   const jlong values[kOpenResultSize] = {
       document ? ToHandle(document) : 0,
       static_cast<jlong>(page_count),
-      static_cast<jlong>(error_code),
+      static_cast<jlong>(pdfium_error),
+      static_cast<jlong>(status),
   };
   env->SetLongArrayRegion(result, 0, kOpenResultSize, values);
   return result;
+}
+
+template <typename Read>
+jstring ReadUtf16(JNIEnv* env, Read read) {
+  try {
+    size_t required_units = 0;
+    const pdfv_status_t size_status =
+        read(nullptr, 0, &required_units);
+    if (size_status == PDFV_OK && required_units == 0) {
+      return nullptr;
+    }
+    if (size_status != PDFV_ERROR_BUFFER_TOO_SMALL ||
+        required_units == 0 ||
+        required_units >
+            static_cast<size_t>(std::numeric_limits<jsize>::max())) {
+      return nullptr;
+    }
+
+    std::vector<uint16_t> utf16(required_units);
+    if (read(utf16.data(), utf16.size(), &required_units) != PDFV_OK ||
+        required_units == 0) {
+      return nullptr;
+    }
+    return env->NewString(
+        reinterpret_cast<const jchar*>(utf16.data()),
+        static_cast<jsize>(required_units - 1));
+  } catch (...) {
+    return nullptr;
+  }
 }
 
 }  // namespace
@@ -125,16 +122,14 @@ extern "C" JNIEXPORT void JNICALL
 Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeInitialize(
     JNIEnv*,
     jobject) {
-  FPDF_LIBRARY_CONFIG config{};
-  config.version = 2;
-  FPDF_InitLibraryWithConfig(&config);
+  pdfv_initialize();
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeDestroy(
     JNIEnv*,
     jobject) {
-  FPDF_DestroyLibrary();
+  pdfv_destroy();
 }
 
 extern "C" JNIEXPORT jlongArray JNICALL
@@ -145,51 +140,42 @@ Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeOpen(
     jstring password) {
   try {
     if (!data) {
-      return NewOpenResult(env, nullptr, 0, FPDF_ERR_FORMAT);
+      return NewOpenResult(
+          env, nullptr, 0, 0, PDFV_ERROR_INVALID_ARGUMENT);
     }
     const jsize size = env->GetArrayLength(data);
     if (size <= 0) {
-      return NewOpenResult(env, nullptr, 0, FPDF_ERR_FORMAT);
+      return NewOpenResult(env, nullptr, 0, 0, PDFV_ERROR_FORMAT);
     }
-
-    auto document = std::make_unique<Document>();
-    document->bytes.resize(static_cast<size_t>(size));
-    env->GetByteArrayRegion(
-        data,
-        0,
-        size,
-        reinterpret_cast<jbyte*>(document->bytes.data()));
-    if (env->ExceptionCheck()) {
-      return nullptr;
-    }
-
     const std::string utf8_password = ToUtf8(env, password);
     if (env->ExceptionCheck()) {
       return nullptr;
     }
-    document->handle = FPDF_LoadMemDocument64(
-        document->bytes.data(),
-        document->bytes.size(),
-        password ? utf8_password.c_str() : nullptr);
-    if (!document->handle) {
-      const unsigned long error = FPDF_GetLastError();
-      return NewOpenResult(env, nullptr, 0, error);
+    jbyte* bytes = env->GetByteArrayElements(data, nullptr);
+    if (!bytes) {
+      return nullptr;
     }
 
-    const int page_count = FPDF_GetPageCount(document->handle);
-    if (page_count < 0) {
-      return NewOpenResult(env, nullptr, 0, FPDF_ERR_UNKNOWN);
-    }
-    Document* released = document.release();
-    jlongArray result = NewOpenResult(env, released, page_count, 0);
-    if (!result) {
-      delete released;
+    pdfv_document_t* document = nullptr;
+    int32_t page_count = 0;
+    uint32_t pdfium_error = 0;
+    const pdfv_status_t status =
+        pdfv_open_memory(reinterpret_cast<const uint8_t*>(bytes),
+                         static_cast<size_t>(size),
+                         password ? utf8_password.c_str() : nullptr,
+                         &document,
+                         &page_count,
+                         &pdfium_error);
+    env->ReleaseByteArrayElements(data, bytes, JNI_ABORT);
+
+    jlongArray result =
+        NewOpenResult(env, document, page_count, pdfium_error, status);
+    if (!result && document) {
+      pdfv_close_document(document);
     }
     return result;
-  } catch (const std::bad_alloc&) {
-    return NewOpenResult(env, nullptr, 0, FPDF_ERR_UNKNOWN);
   } catch (...) {
-    return NewOpenResult(env, nullptr, 0, FPDF_ERR_UNKNOWN);
+    return nullptr;
   }
 }
 
@@ -198,7 +184,68 @@ Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeClose(
     JNIEnv*,
     jobject,
     jlong handle) {
-  delete FromHandle(handle);
+  pdfv_close_document(FromHandle(handle));
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL
+Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeDocumentInformation(
+    JNIEnv* env,
+    jobject,
+    jlong handle) {
+  pdfv_document_info_t info{};
+  const pdfv_status_t status =
+      pdfv_get_document_info(FromHandle(handle), &info);
+  jlongArray result = env->NewLongArray(kDocumentInfoResultSize);
+  if (!result) {
+    return nullptr;
+  }
+  const jlong values[kDocumentInfoResultSize] = {
+      static_cast<jlong>(status),
+      info.has_version,
+      info.version,
+      static_cast<jlong>(info.permissions),
+      info.security_revision,
+      info.has_valid_cross_reference_table,
+      info.is_linearized,
+  };
+  env->SetLongArrayRegion(result, 0, kDocumentInfoResultSize, values);
+  return result;
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeMetadata(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jstring tag) {
+  try {
+    const std::string utf8_tag = ToUtf8(env, tag);
+    if (env->ExceptionCheck() || utf8_tag.empty()) {
+      return nullptr;
+    }
+    return ReadUtf16(env, [&](uint16_t* buffer,
+                              size_t units,
+                              size_t* required) {
+      return pdfv_get_metadata_utf16(
+          FromHandle(handle), utf8_tag.c_str(), buffer, units, required);
+    });
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativePageLabel(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jint page_index) {
+  return ReadUtf16(env, [&](uint16_t* buffer,
+                            size_t units,
+                            size_t* required) {
+    return pdfv_get_page_label_utf16(
+        FromHandle(handle), page_index, buffer, units, required);
+  });
 }
 
 extern "C" JNIEXPORT jdoubleArray JNICALL
@@ -207,34 +254,23 @@ Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativePageInfor
     jobject,
     jlong handle,
     jint page_index) {
-  Document* document = FromHandle(handle);
-  if (!document || !document->handle) {
+  pdfv_page_info_t info{};
+  if (pdfv_get_page_info(FromHandle(handle), page_index, &info) != PDFV_OK) {
     return nullptr;
   }
-  Page page(FPDF_LoadPage(document->handle, page_index));
-  if (!page.handle) {
-    return nullptr;
-  }
-
-  const double width = FPDF_GetPageWidthF(page.handle);
-  const double height = FPDF_GetPageHeightF(page.handle);
-  const int rotation = FPDFPage_GetRotation(page.handle);
-  FS_RECTF bounds{};
-  const bool has_bounds = FPDF_GetPageBoundingBox(page.handle, &bounds);
-
   jdoubleArray result = env->NewDoubleArray(kPageInfoResultSize);
   if (!result) {
     return nullptr;
   }
   const jdouble values[kPageInfoResultSize] = {
-      width,
-      height,
-      static_cast<double>(rotation),
-      bounds.left,
-      bounds.bottom,
-      bounds.right,
-      bounds.top,
-      has_bounds ? 1.0 : 0.0,
+      info.width,
+      info.height,
+      static_cast<double>(info.rotation),
+      info.bounding_box.left,
+      info.bounding_box.bottom,
+      info.bounding_box.right,
+      info.bounding_box.top,
+      info.has_bounding_box ? 1.0 : 0.0,
   };
   env->SetDoubleArrayRegion(result, 0, kPageInfoResultSize, values);
   return result;
@@ -254,61 +290,33 @@ Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeRender(
     jboolean grayscale,
     jboolean lcd_text) {
   try {
-    Document* document = FromHandle(handle);
-    if (!document || !document->handle || width <= 0 || height <= 0) {
+    if (width <= 0 || height <= 0) {
       return nullptr;
     }
-    const int64_t stride = static_cast<int64_t>(width) * 4;
-    const int64_t byte_count = stride * height;
-    if (stride > std::numeric_limits<int>::max() ||
+    const int64_t byte_count =
+        static_cast<int64_t>(width) * height * 4;
+    if (byte_count <= 0 ||
         byte_count > std::numeric_limits<jsize>::max()) {
       return nullptr;
     }
 
-    Page page(FPDF_LoadPage(document->handle, page_index));
-    if (!page.handle) {
-      return nullptr;
-    }
     std::vector<uint8_t> pixels(static_cast<size_t>(byte_count));
-    Bitmap bitmap(FPDFBitmap_CreateEx(
-        width,
-        height,
-        FPDFBitmap_BGRA,
-        pixels.data(),
-        static_cast<int>(stride)));
-    if (!bitmap.handle) {
-      return nullptr;
+    pdfv_render_request_t request{};
+    request.width = width;
+    request.height = height;
+    request.rotation = rotation;
+    request.background_argb = static_cast<uint32_t>(background_color);
+    if (render_annotations) {
+      request.flags |= PDFV_RENDER_ANNOTATIONS;
     }
-
-    const bool filled = FPDFBitmap_FillRect(
-        bitmap.handle,
-        0,
-        0,
-        width,
-        height,
-        static_cast<FPDF_DWORD>(background_color));
-    if (filled) {
-      int flags = 0;
-      if (render_annotations) {
-        flags |= FPDF_ANNOT;
-      }
-      if (grayscale) {
-        flags |= FPDF_GRAYSCALE;
-      }
-      if (lcd_text) {
-        flags |= FPDF_LCD_TEXT;
-      }
-      FPDF_RenderPageBitmap(
-          bitmap.handle,
-          page.handle,
-          0,
-          0,
-          width,
-          height,
-          rotation,
-          flags);
+    if (grayscale) {
+      request.flags |= PDFV_RENDER_GRAYSCALE;
     }
-    if (!filled) {
+    if (lcd_text) {
+      request.flags |= PDFV_RENDER_LCD_TEXT;
+    }
+    if (pdfv_render_page(FromHandle(handle), page_index, &request,
+                         pixels.data(), pixels.size()) != PDFV_OK) {
       return nullptr;
     }
 
@@ -317,12 +325,27 @@ Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeRender(
       return nullptr;
     }
     env->SetByteArrayRegion(
-        result,
-        0,
-        static_cast<jsize>(byte_count),
+        result, 0, static_cast<jsize>(byte_count),
         reinterpret_cast<const jbyte*>(pixels.data()));
     return result;
   } catch (...) {
     return nullptr;
   }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_io_github_limuyang2_pdf_viewer_internal_AndroidPdfiumNative_nativeExtractText(
+    JNIEnv* env,
+    jobject,
+    jlong handle,
+    jint page_index,
+    jint start_character_index,
+    jint character_count) {
+  return ReadUtf16(env, [&](uint16_t* buffer,
+                            size_t units,
+                            size_t* required) {
+    return pdfv_extract_text_utf16(
+        FromHandle(handle), page_index, start_character_index,
+        character_count, buffer, units, required);
+  });
 }

@@ -8,17 +8,14 @@ import kotlin.coroutines.coroutineContext
 internal object PdfiumOperation {
     suspend fun <T> execute(
         onCancelled: (T) -> Unit = {},
-        operation: suspend () -> T,
+        operation: () -> T,
     ): T {
         val callerContext = coroutineContext
         callerContext.ensureActive()
 
         return PdfiumCallGate.call {
             callerContext.ensureActive()
-            val completed =
-                withContext(NonCancellable) {
-                    operation()
-                }
+            val completed = operation()
             try {
                 callerContext.ensureActive()
             } catch (failure: Throwable) {
@@ -35,5 +32,11 @@ internal object PdfiumOperation {
 
     fun close(operation: () -> Unit) {
         PdfiumCallGate.close(operation)
+    }
+
+    suspend fun closeAndAwait(operation: () -> Unit) {
+        withContext(NonCancellable) {
+            PdfiumCallGate.call(operation)
+        }
     }
 }

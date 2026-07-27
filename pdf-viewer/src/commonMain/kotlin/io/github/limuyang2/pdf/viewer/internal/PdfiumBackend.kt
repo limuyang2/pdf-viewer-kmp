@@ -28,66 +28,66 @@ internal interface PdfiumBackend {
 
     fun destroy()
 
-    suspend fun open(
+    fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument
 
     fun close(document: NativeDocumentHandle)
 
-    suspend fun documentInformation(
+    fun documentInformation(
         document: NativeDocumentHandle,
     ): PdfDocumentInfo
 
-    suspend fun metadata(
+    fun metadata(
         document: NativeDocumentHandle,
     ): PdfMetadata
 
-    suspend fun bookmarks(
+    fun bookmarks(
         document: NativeDocumentHandle,
     ): List<PdfBookmark>
 
-    suspend fun pageLabel(
+    fun pageLabel(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): String?
 
-    suspend fun pageInformation(
+    fun pageInformation(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfPageInfo
 
-    suspend fun render(
+    fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
     ): PdfBitmap
 
-    suspend fun thumbnail(
+    fun thumbnail(
         document: NativeDocumentHandle,
         pageIndex: Int,
         maximumSize: PdfPixelSize,
     ): PdfBitmap?
 
-    suspend fun extractText(
+    fun extractText(
         document: NativeDocumentHandle,
         pageIndex: Int,
         range: PdfTextRange?,
     ): String
 
-    suspend fun textLayout(
+    fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfTextLayout
 
-    suspend fun search(
+    fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
     ): List<PdfSearchMatch>
 
-    suspend fun links(
+    fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): List<PdfLink>

@@ -5,7 +5,7 @@ package io.github.limuyang2.pdf.viewer.internal
  * PDFium declares its API non-thread-safe at process scope.
  */
 internal object PdfiumCallGate {
-    suspend fun <T> call(operation: suspend () -> T): T =
+    suspend fun <T> call(operation: () -> T): T =
         platformPdfiumCall(operation)
 
     fun close(operation: () -> Unit) {
@@ -14,7 +14,7 @@ internal object PdfiumCallGate {
 }
 
 internal expect suspend fun <T> platformPdfiumCall(
-    operation: suspend () -> T,
+    operation: () -> T,
 ): T
 
 internal expect fun platformPdfiumClose(operation: () -> Unit)

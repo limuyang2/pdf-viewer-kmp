@@ -13,8 +13,8 @@ import io.github.limuyang2.pdf.viewer.PdfMetadata
 import io.github.limuyang2.pdf.viewer.PdfNativeException
 import io.github.limuyang2.pdf.viewer.PdfPageException
 import io.github.limuyang2.pdf.viewer.PdfPageInfo
-import io.github.limuyang2.pdf.viewer.PdfPixelSize
 import io.github.limuyang2.pdf.viewer.PdfPermissions
+import io.github.limuyang2.pdf.viewer.PdfPixelSize
 import io.github.limuyang2.pdf.viewer.PdfRect
 import io.github.limuyang2.pdf.viewer.PdfRenderRequest
 import io.github.limuyang2.pdf.viewer.PdfRotation
@@ -26,50 +26,46 @@ import io.github.limuyang2.pdf.viewer.PdfTextLayout
 import io.github.limuyang2.pdf.viewer.PdfTextRange
 import io.github.limuyang2.pdf.viewer.PdfUnsupportedFeatureException
 import io.github.limuyang2.pdf.viewer.PdfVersion
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFBitmap_BGRA
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFBitmap_CreateEx
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFBitmap_Destroy
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFBitmap_FillRect
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_ANNOT
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_CloseDocument
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_ClosePage
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_DocumentHasValidCrossReferenceTable
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_DestroyLibrary
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetDocPermissions
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetFileVersion
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetLastError
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetMetaText
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetPageBoundingBox
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetPageCount
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetPageHeightF
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetPageLabel
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetPageWidthF
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GetSecurityHandlerRevision
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_GRAYSCALE
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_InitLibraryWithConfig
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_LCD_TEXT
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_LIBRARY_CONFIG
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_LoadMemDocument64
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_LoadPage
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_RenderPageBitmap
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFPage_GetRotation
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFText_ClosePage
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFText_CountChars
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFText_GetText
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDFText_LoadPage
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FS_RECTF
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_ABI_VERSION
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_ERROR_BUFFER_TOO_SMALL
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_ERROR_CLOSED
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_ERROR_PAGE
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_OK
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_RENDER_ANNOTATIONS
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_RENDER_GRAYSCALE
+import io.github.limuyang2.pdf.viewer.internal.nativecore.PDFV_RENDER_LCD_TEXT
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_close_document
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_destroy
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_document_info_t
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_document_t
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_extract_text_utf16
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_get_abi_version
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_get_document_info
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_get_metadata_utf16
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_get_page_info
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_get_page_label_utf16
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_initialize
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_open_memory
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_page_info_t
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_render_page
+import io.github.limuyang2.pdf.viewer.internal.nativecore.pdfv_render_request_t
+import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.CPointerVar
+import kotlinx.cinterop.IntVar
+import kotlinx.cinterop.UByteVar
+import kotlinx.cinterop.UIntVar
+import kotlinx.cinterop.ULongVar
+import kotlinx.cinterop.UShortVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
-import kotlinx.cinterop.CValuesRef
-import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.pin
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 
 internal object IosPdfiumBackend : PdfiumBackend {
-    private val documents = mutableMapOf<Long, IosPdfDocument>()
+    private val documents = mutableMapOf<Long, CPointer<pdfv_document_t>>()
     private var nextHandle = 1L
 
     override val capabilities: PdfCapabilities =
@@ -88,24 +84,20 @@ internal object IosPdfiumBackend : PdfiumBackend {
         )
 
     override fun initialize() {
-        memScoped {
-            val config = alloc<FPDF_LIBRARY_CONFIG>()
-            config.version = 2
-            config.m_pUserFontPaths = null
-            config.m_pIsolate = null
-            config.m_v8EmbedderSlot = 0u
-            FPDF_InitLibraryWithConfig(config.ptr)
+        check(pdfv_get_abi_version() == PDFV_ABI_VERSION) {
+            "The bundled PDF viewer native bridge has an incompatible ABI"
         }
+        requireBridgeStatus(pdfv_initialize())
     }
 
     override fun destroy() {
         check(documents.isEmpty()) {
             "Cannot destroy PDFium while iOS documents are still open"
         }
-        FPDF_DestroyLibrary()
+        requireBridgeStatus(pdfv_destroy())
     }
 
-    override suspend fun open(
+    override fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument {
@@ -118,94 +110,160 @@ internal object IosPdfiumBackend : PdfiumBackend {
         if (bytes.isEmpty()) {
             throw PdfInvalidFormatException()
         }
-
-        val pinnedSource = bytes.pin()
-        val document =
-            FPDF_LoadMemDocument64(
-                data_buf = pinnedSource.addressOf(0),
-                size = bytes.size.toULong(),
-                password = password,
-            )
-        if (document == null) {
-            val errorCode = FPDF_GetLastError()
-            pinnedSource.unpin()
-            throw pdfiumOpenFailure(
-                errorCode = errorCode,
-                passwordWasSupplied = password != null,
-            )
+        require(password?.contains('\u0000') != true) {
+            "password must not contain a null character"
         }
 
-        try {
-            val pageCount = FPDF_GetPageCount(document)
-            if (pageCount < 0) {
-                throw PdfNativeException(
-                    nativeErrorCode = 0,
-                    message = "PDFium returned an invalid page count: $pageCount",
-                )
+        return memScoped {
+            val document = alloc<CPointerVar<pdfv_document_t>>()
+            val pageCount = alloc<IntVar>()
+            val pdfiumError = alloc<UIntVar>()
+            val status =
+                bytes.usePinned { pinned ->
+                    pdfv_open_memory(
+                        data = pinned.addressOf(0).reinterpret<UByteVar>(),
+                        size = bytes.size.toULong(),
+                        password_utf8 = password,
+                        document = document.ptr,
+                        page_count = pageCount.ptr,
+                        pdfium_error = pdfiumError.ptr,
+                    )
+                }
+            if (status != PDFV_OK) {
+                if (pdfiumError.value != 0u) {
+                    throw pdfiumOpenFailure(
+                        errorCode = pdfiumError.value.toULong(),
+                        passwordWasSupplied = password != null,
+                    )
+                }
+                requireBridgeStatus(status)
             }
+            val opened =
+                checkNotNull(document.value) {
+                    "The shared PDFium bridge returned a null document"
+                }
             check(nextHandle < Long.MAX_VALUE) {
                 "The iOS PDF document handle space is exhausted"
             }
-            val handleValue = nextHandle++
-            documents[handleValue] =
-                IosPdfDocument(
-                    document = document,
-                    source = bytes,
-                    pinnedSource = pinnedSource,
-                )
-            return OpenedDocument(
-                handle = NativeDocumentHandle(handleValue),
-                pageCount = pageCount,
+            val handle = nextHandle++
+            documents[handle] = opened
+            OpenedDocument(
+                handle = NativeDocumentHandle(handle),
+                pageCount = pageCount.value,
             )
-        } catch (failure: Throwable) {
-            FPDF_CloseDocument(document)
-            pinnedSource.unpin()
-            throw failure
         }
     }
 
     override fun close(document: NativeDocumentHandle) {
-        val iosDocument =
+        val pointer =
             documents.remove(document.value)
                 ?: throw PdfClosedException("PDF document")
-        try {
-            FPDF_CloseDocument(iosDocument.document)
-        } finally {
-            iosDocument.pinnedSource.unpin()
-        }
+        requireBridgeStatus(pdfv_close_document(pointer))
     }
 
-    override suspend fun pageInformation(
+    override fun documentInformation(
         document: NativeDocumentHandle,
-        pageIndex: Int,
-    ): PdfPageInfo =
-        withPage(document, pageIndex) { page ->
-            val boundingBox =
-                memScoped {
-                    val rect = alloc<FS_RECTF>()
-                    if (FPDF_GetPageBoundingBox(page, rect.ptr) == 0) {
+    ): PdfDocumentInfo =
+        memScoped {
+            val info = alloc<pdfv_document_info_t>()
+            requireBridgeStatus(
+                pdfv_get_document_info(document.pointer(), info.ptr),
+            )
+            val encodedVersion = info.version
+            PdfDocumentInfo(
+                version =
+                    if (info.has_version == 0) {
                         null
                     } else {
-                        PdfRect(
-                            left = rect.left.toDouble(),
-                            bottom = rect.bottom.toDouble(),
-                            right = rect.right.toDouble(),
-                            top = rect.top.toDouble(),
+                        PdfVersion(
+                            major = encodedVersion / 10,
+                            minor = encodedVersion % 10,
                         )
-                    }
-                }
-            PdfPageInfo(
-                size =
-                    PdfSize(
-                        width = FPDF_GetPageWidthF(page).toDouble(),
-                        height = FPDF_GetPageHeightF(page).toDouble(),
-                    ),
-                rotation = pdfRotation(FPDFPage_GetRotation(page)),
-                boundingBox = boundingBox,
+                    },
+                permissions = info.permissions.toPdfPermissions(),
+                securityRevision = info.security_revision.takeIf { it >= 0 },
+                hasValidCrossReferenceTable =
+                    info.has_valid_cross_reference_table != 0,
+                isLinearized =
+                    when (info.is_linearized) {
+                        0 -> false
+                        1 -> true
+                        else -> null
+                    },
             )
         }
 
-    override suspend fun render(
+    override fun metadata(
+        document: NativeDocumentHandle,
+    ): PdfMetadata {
+        fun value(tag: String): String? =
+            readUtf16(emptyIsNull = true) { buffer, units, required ->
+                pdfv_get_metadata_utf16(
+                    document.pointer(),
+                    tag,
+                    buffer,
+                    units,
+                    required,
+                )
+            }
+        return PdfMetadata(
+            title = value("Title"),
+            author = value("Author"),
+            subject = value("Subject"),
+            keywords = value("Keywords"),
+            creator = value("Creator"),
+            producer = value("Producer"),
+            creationDate = value("CreationDate"),
+            modificationDate = value("ModDate"),
+        )
+    }
+
+    override fun bookmarks(
+        document: NativeDocumentHandle,
+    ): List<PdfBookmark> = unsupported("bookmarks on iOS")
+
+    override fun pageLabel(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+    ): String? =
+        readUtf16(emptyIsNull = false) { buffer, units, required ->
+            pdfv_get_page_label_utf16(
+                document.pointer(),
+                pageIndex,
+                buffer,
+                units,
+                required,
+            )
+        }
+
+    override fun pageInformation(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+    ): PdfPageInfo =
+        memScoped {
+            val info = alloc<pdfv_page_info_t>()
+            requireBridgeStatus(
+                pdfv_get_page_info(document.pointer(), pageIndex, info.ptr),
+                pageIndex,
+            )
+            PdfPageInfo(
+                size = PdfSize(info.width, info.height),
+                rotation = pdfRotation(info.rotation),
+                boundingBox =
+                    if (info.has_bounding_box == 0) {
+                        null
+                    } else {
+                        PdfRect(
+                            left = info.bounding_box.left,
+                            bottom = info.bounding_box.bottom,
+                            right = info.bounding_box.right,
+                            top = info.bounding_box.top,
+                        )
+                    },
+            )
+        }
+
+    override fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
@@ -220,213 +278,147 @@ internal object IosPdfiumBackend : PdfiumBackend {
         require(strideLong <= Int.MAX_VALUE && byteCountLong <= Int.MAX_VALUE) {
             "render output is too large"
         }
-        val stride = strideLong.toInt()
         val pixels = ByteArray(byteCountLong.toInt())
 
-        withPage(document, pageIndex) { page ->
-            pixels.usePinned { pinnedPixels ->
-                val bitmap =
-                    FPDFBitmap_CreateEx(
-                        width = width,
-                        height = height,
-                        format = FPDFBitmap_BGRA,
-                        first_scan = pinnedPixels.addressOf(0),
-                        stride = stride,
-                    ) ?: throw PdfNativeException(
-                        nativeErrorCode = 0,
-                        message = "PDFium could not create a render bitmap",
-                    )
-                try {
-                    if (
-                        FPDFBitmap_FillRect(
-                            bitmap = bitmap,
-                            left = 0,
-                            top = 0,
-                            width = width,
-                            height = height,
-                            color = request.backgroundColor.argb.toULong(),
-                        ) == 0
-                    ) {
-                        throw PdfNativeException(
-                            nativeErrorCode = 0,
-                            message = "PDFium could not fill the render bitmap",
-                        )
+        memScoped {
+            val nativeRequest =
+                alloc<pdfv_render_request_t> {
+                    this.width = width
+                    this.height = height
+                    rotation = request.rotation.degrees / 90
+                    background_argb = request.backgroundColor.argb
+                    flags = 0u
+                    if (request.renderAnnotations) {
+                        flags = flags or PDFV_RENDER_ANNOTATIONS
                     }
-                    var flags = 0
-                    if (request.renderAnnotations) flags = flags or FPDF_ANNOT
-                    if (request.grayscale) flags = flags or FPDF_GRAYSCALE
-                    if (request.optimizeTextForLcd) flags = flags or FPDF_LCD_TEXT
-                    FPDF_RenderPageBitmap(
-                        bitmap = bitmap,
-                        page = page,
-                        start_x = 0,
-                        start_y = 0,
-                        size_x = width,
-                        size_y = height,
-                        rotate = request.rotation.degrees / 90,
-                        flags = flags,
-                    )
-                } finally {
-                    FPDFBitmap_Destroy(bitmap)
-                }
-            }
-        }
-        return IosPdfBitmap(width, height, stride, pixels)
-    }
-
-    override suspend fun extractText(
-        document: NativeDocumentHandle,
-        pageIndex: Int,
-        range: PdfTextRange?,
-    ): String =
-        withPage(document, pageIndex) { page ->
-            val textPage =
-                FPDFText_LoadPage(page)
-                    ?: throw PdfPageException(pageIndex)
-            try {
-                val totalCharacterCount = FPDFText_CountChars(textPage)
-                if (totalCharacterCount < 0) {
-                    throw PdfPageException(pageIndex)
-                }
-                val start = range?.startCharacterIndex ?: 0
-                val count = range?.characterCount ?: totalCharacterCount
-                require(start.toLong() + count <= totalCharacterCount) {
-                    "text range exceeds the page character count"
-                }
-                if (count == 0) return@withPage ""
-
-                val utf16 = UShortArray(count + 1)
-                val written =
-                    utf16.usePinned { pinnedText ->
-                        FPDFText_GetText(
-                            text_page = textPage,
-                            start_index = start,
-                            count = count,
-                            result = pinnedText.addressOf(0),
-                        )
+                    if (request.grayscale) {
+                        flags = flags or PDFV_RENDER_GRAYSCALE
                     }
-                if (written <= 0) {
-                    throw PdfPageException(pageIndex)
-                }
-                buildString(written - 1) {
-                    repeat(written - 1) { index ->
-                        append(utf16[index].toInt().toChar())
+                    if (request.optimizeTextForLcd) {
+                        flags = flags or PDFV_RENDER_LCD_TEXT
                     }
                 }
-            } finally {
-                FPDFText_ClosePage(textPage)
-            }
-        }
-
-    override suspend fun documentInformation(
-        document: NativeDocumentHandle,
-    ): PdfDocumentInfo {
-        val nativeDocument = requireDocument(document).document
-        val version =
-            memScoped {
-                val encodedVersion = alloc<IntVar>()
-                if (FPDF_GetFileVersion(nativeDocument, encodedVersion.ptr) == 0) {
-                    null
-                } else {
-                    PdfVersion(
-                        major = encodedVersion.value / 10,
-                        minor = encodedVersion.value % 10,
+            val status =
+                pixels.usePinned { pinned ->
+                    pdfv_render_page(
+                        document.pointer(),
+                        pageIndex,
+                        nativeRequest.ptr,
+                        pinned.addressOf(0).reinterpret<UByteVar>(),
+                        pixels.size.toULong(),
                     )
                 }
-            }
-        val permissionFlags = FPDF_GetDocPermissions(nativeDocument)
-        val securityRevision =
-            FPDF_GetSecurityHandlerRevision(nativeDocument).takeIf { it >= 0 }
-        return PdfDocumentInfo(
-            version = version,
-            permissions = permissionFlags.toPdfPermissions(),
-            securityRevision = securityRevision,
-            hasValidCrossReferenceTable =
-                FPDF_DocumentHasValidCrossReferenceTable(nativeDocument) != 0,
-            isLinearized = null,
-        )
-    }
-
-    override suspend fun metadata(
-        document: NativeDocumentHandle,
-    ): PdfMetadata {
-        val nativeDocument = requireDocument(document).document
-        fun value(tag: String): String? =
-            readPdfiumUtf16(emptyIsNull = true) { buffer, byteCount ->
-                FPDF_GetMetaText(nativeDocument, tag, buffer, byteCount)
-            }
-        return PdfMetadata(
-            title = value("Title"),
-            author = value("Author"),
-            subject = value("Subject"),
-            keywords = value("Keywords"),
-            creator = value("Creator"),
-            producer = value("Producer"),
-            creationDate = value("CreationDate"),
-            modificationDate = value("ModDate"),
-        )
-    }
-
-    override suspend fun bookmarks(
-        document: NativeDocumentHandle,
-    ): List<PdfBookmark> = unsupported("bookmarks on iOS")
-
-    override suspend fun pageLabel(
-        document: NativeDocumentHandle,
-        pageIndex: Int,
-    ): String? {
-        val nativeDocument = requireDocument(document).document
-        return readPdfiumUtf16(emptyIsNull = false) { buffer, byteCount ->
-            FPDF_GetPageLabel(
-                document = nativeDocument,
-                page_index = pageIndex,
-                buffer = buffer,
-                buflen = byteCount,
-            )
+            requireBridgeStatus(status, pageIndex)
         }
+        return IosPdfBitmap(width, height, strideLong.toInt(), pixels)
     }
 
-    override suspend fun thumbnail(
+    override fun thumbnail(
         document: NativeDocumentHandle,
         pageIndex: Int,
         maximumSize: PdfPixelSize,
     ): PdfBitmap? = unsupported("embedded thumbnails on iOS")
 
-    override suspend fun textLayout(
+    override fun extractText(
+        document: NativeDocumentHandle,
+        pageIndex: Int,
+        range: PdfTextRange?,
+    ): String =
+        readUtf16(emptyIsNull = false) { buffer, units, required ->
+            pdfv_extract_text_utf16(
+                document.pointer(),
+                pageIndex,
+                range?.startCharacterIndex ?: 0,
+                range?.characterCount ?: -1,
+                buffer,
+                units,
+                required,
+            )
+        } ?: throw PdfPageException(pageIndex)
+
+    override fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfTextLayout = unsupported("text layout on iOS")
 
-    override suspend fun search(
+    override fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
     ): List<PdfSearchMatch> = unsupported("text search on iOS")
 
-    override suspend fun links(
+    override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): List<PdfLink> = unsupported("links on iOS")
 
-    private inline fun <T> withPage(
-        document: NativeDocumentHandle,
-        pageIndex: Int,
-        operation: (io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_PAGE) -> T,
-    ): T {
-        val nativeDocument = requireDocument(document)
-        val page =
-            FPDF_LoadPage(nativeDocument.document, pageIndex)
-                ?: throw PdfPageException(pageIndex)
-        return try {
-            operation(page)
-        } finally {
-            FPDF_ClosePage(page)
+    private fun NativeDocumentHandle.pointer(): CPointer<pdfv_document_t> =
+        documents[value]
+            ?: throw PdfClosedException("PDF document")
+
+    private fun readUtf16(
+        emptyIsNull: Boolean,
+        load: (
+            buffer: CPointer<UShortVar>?,
+            bufferUnits: ULong,
+            requiredUnits: CPointer<ULongVar>,
+        ) -> UInt,
+    ): String? =
+        memScoped {
+            val required = alloc<ULongVar>()
+            val sizeStatus = load(null, 0u, required.ptr)
+            if (sizeStatus == PDFV_OK && required.value == 0uL) {
+                return@memScoped null
+            }
+            if (sizeStatus != PDFV_ERROR_BUFFER_TOO_SMALL) {
+                requireBridgeStatus(sizeStatus)
+            }
+            if (required.value > Int.MAX_VALUE.toULong()) {
+                throw PdfNativeException(
+                    nativeErrorCode = 0,
+                    message = "The shared PDFium bridge returned oversized UTF-16 data",
+                )
+            }
+            val utf16 = UShortArray(required.value.toInt())
+            val status =
+                utf16.usePinned { pinned ->
+                    load(
+                        pinned.addressOf(0),
+                        utf16.size.toULong(),
+                        required.ptr,
+                    )
+                }
+            requireBridgeStatus(status)
+            if (utf16.size <= 1 && emptyIsNull) {
+                null
+            } else {
+                buildString(utf16.size - 1) {
+                    repeat(utf16.size - 1) { index ->
+                        append(utf16[index].toInt().toChar())
+                    }
+                }
+            }
+        }
+
+    private fun requireBridgeStatus(
+        status: UInt,
+        pageIndex: Int? = null,
+    ) {
+        when (status) {
+            PDFV_OK -> Unit
+            PDFV_ERROR_CLOSED -> throw PdfClosedException("PDF document")
+            PDFV_ERROR_PAGE ->
+                throw PdfPageException(
+                    pageIndex = pageIndex ?: 0,
+                )
+            else ->
+                throw PdfNativeException(
+                    nativeErrorCode = status.toInt(),
+                    message = "The shared PDFium bridge failed with status $status",
+                )
         }
     }
-
-    private fun requireDocument(handle: NativeDocumentHandle): IosPdfDocument =
-        documents[handle.value] ?: throw PdfClosedException("PDF document")
 
     private fun pdfRotation(value: Int): PdfRotation =
         when (value) {
@@ -453,40 +445,6 @@ internal object IosPdfiumBackend : PdfiumBackend {
             canAssemble = allows(11),
             canPrintHighQuality = allows(12),
         )
-    }
-
-    private fun readPdfiumUtf16(
-        emptyIsNull: Boolean,
-        load: (buffer: CValuesRef<*>?, byteCount: ULong) -> ULong,
-    ): String? {
-        val requiredBytes = load(null, 0u)
-        if (requiredBytes == 0uL || requiredBytes % 2uL != 0uL) {
-            return null
-        }
-        if (requiredBytes == 2uL && emptyIsNull) return null
-        val unitCount = (requiredBytes / 2uL).toLong()
-        if (unitCount > Int.MAX_VALUE) {
-            throw PdfNativeException(
-                nativeErrorCode = 0,
-                message = "PDFium returned an oversized UTF-16 value",
-            )
-        }
-        val utf16 = UShortArray(unitCount.toInt())
-        val writtenBytes =
-            utf16.usePinned { pinned ->
-                load(pinned.addressOf(0), requiredBytes)
-            }
-        if (writtenBytes != requiredBytes) {
-            throw PdfNativeException(
-                nativeErrorCode = 0,
-                message = "PDFium could not read a UTF-16 value",
-            )
-        }
-        return buildString(utf16.size - 1) {
-            repeat(utf16.size - 1) { index ->
-                append(utf16[index].toInt().toChar())
-            }
-        }
     }
 
     private fun unsupported(feature: String): Nothing =

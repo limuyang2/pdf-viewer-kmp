@@ -40,6 +40,7 @@ internal class FakePdfiumBackend(
         )
 
     var openFailure: Throwable? = null
+    var closeFailure: Throwable? = null
     var initializeCount: Int = 0
     var destroyCount: Int = 0
     var openCount: Int = 0
@@ -47,8 +48,8 @@ internal class FakePdfiumBackend(
     var lastSource: PdfSource? = null
     var lastPassword: String? = null
     val calls: MutableList<String> = mutableListOf()
-    var openOperation: suspend () -> Unit = {}
-    var pageInformationOperation: suspend () -> Unit = {}
+    var openOperation: () -> Unit = {}
+    var pageInformationOperation: () -> Unit = {}
     var activeOperationCount: Int = 0
         private set
     var maximumActiveOperationCount: Int = 0
@@ -62,7 +63,7 @@ internal class FakePdfiumBackend(
         destroyCount += 1
     }
 
-    override suspend fun open(
+    override fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument {
@@ -80,9 +81,10 @@ internal class FakePdfiumBackend(
     override fun close(document: NativeDocumentHandle) {
         closeCount += 1
         calls += "close:${document.value}"
+        closeFailure?.let { throw it }
     }
 
-    override suspend fun documentInformation(
+    override fun documentInformation(
         document: NativeDocumentHandle,
     ): PdfDocumentInfo {
         calls += "information"
@@ -105,7 +107,7 @@ internal class FakePdfiumBackend(
         )
     }
 
-    override suspend fun metadata(document: NativeDocumentHandle): PdfMetadata {
+    override fun metadata(document: NativeDocumentHandle): PdfMetadata {
         calls += "metadata"
         return PdfMetadata(
             title = "Fake PDF",
@@ -119,14 +121,14 @@ internal class FakePdfiumBackend(
         )
     }
 
-    override suspend fun bookmarks(
+    override fun bookmarks(
         document: NativeDocumentHandle,
     ): List<PdfBookmark> {
         calls += "bookmarks"
         return emptyList()
     }
 
-    override suspend fun pageLabel(
+    override fun pageLabel(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): String {
@@ -134,7 +136,7 @@ internal class FakePdfiumBackend(
         return "Page ${pageIndex + 1}"
     }
 
-    override suspend fun pageInformation(
+    override fun pageInformation(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfPageInfo {
@@ -154,7 +156,7 @@ internal class FakePdfiumBackend(
         }
     }
 
-    override suspend fun render(
+    override fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
@@ -163,7 +165,7 @@ internal class FakePdfiumBackend(
         return FakePdfBitmap(request.outputSize)
     }
 
-    override suspend fun thumbnail(
+    override fun thumbnail(
         document: NativeDocumentHandle,
         pageIndex: Int,
         maximumSize: PdfPixelSize,
@@ -172,7 +174,7 @@ internal class FakePdfiumBackend(
         return FakePdfBitmap(maximumSize)
     }
 
-    override suspend fun extractText(
+    override fun extractText(
         document: NativeDocumentHandle,
         pageIndex: Int,
         range: PdfTextRange?,
@@ -181,7 +183,7 @@ internal class FakePdfiumBackend(
         return "fake text"
     }
 
-    override suspend fun textLayout(
+    override fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfTextLayout {
@@ -193,7 +195,7 @@ internal class FakePdfiumBackend(
         )
     }
 
-    override suspend fun search(
+    override fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
@@ -203,7 +205,7 @@ internal class FakePdfiumBackend(
         return emptyList()
     }
 
-    override suspend fun links(
+    override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): List<PdfLink> {

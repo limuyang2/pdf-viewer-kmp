@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -40,37 +41,117 @@ kotlin {
         browser()
     }
 
-    val pdfiumInteropDefinition = project.file("src/nativeInterop/cinterop/pdfium.def")
+    val pdfiumInteropDefinition = project.file("src/nativeInterop/cinterop/pdfviewerCore.def")
     val pdfiumHeaders = project.file("src/nativeInterop/cinterop/include")
     val pdfiumLibraries = project.file("src/nativeInterop/cinterop/lib")
+    val nativeCore = rootProject.file("pdf-viewer-native-core")
+    val nativeCoreHeaders = nativeCore.resolve("include")
+    val nativeCoreSource = nativeCore.resolve("src/pdfviewer_core.cpp")
 
     listOf(
-        iosArm64() to "iosArm64",
-        iosSimulatorArm64() to "iosSimulatorArm64",
-    ).forEach { (target, libraryDirectory) ->
+        Triple(iosArm64(), "iosArm64", "iphoneos"),
+        Triple(iosSimulatorArm64(), "iosSimulatorArm64", "iphonesimulator"),
+    ).forEach { (target, libraryDirectory, sdk) ->
         val deploymentTargetOverride =
             "-Xoverride-konan-properties=" +
                 "osVersionMin.ios_arm64=$pdfiumIosDeploymentTarget;" +
                 "osVersionMin.ios_simulator_arm64=$pdfiumIosDeploymentTarget"
+        val taskSuffix = libraryDirectory.replaceFirstChar(Char::uppercase)
+        val nativeCoreOutput =
+            layout.buildDirectory.dir("pdfviewerCore/$libraryDirectory")
+        val nativeCoreObject =
+            nativeCoreOutput.map { it.file("pdfviewer_core.o") }
+        val nativeCoreArchive =
+            nativeCoreOutput.map { it.file("libpdfviewer_core.a") }
+        val compileNativeCore =
+            tasks.register<Exec>("compilePdfviewerCore$taskSuffix") {
+                inputs.file(nativeCoreSource)
+                inputs.dir(nativeCoreHeaders)
+                inputs.dir(pdfiumHeaders)
+                outputs.file(nativeCoreObject)
+                doFirst {
+                    nativeCoreOutput.get().asFile.mkdirs()
+                }
+                commandLine(
+                    "xcrun",
+                    "--sdk",
+                    sdk,
+                    "clang++",
+                    "-std=c++17",
+                    "-arch",
+                    "arm64",
+                    if (sdk == "iphoneos") {
+                        "-mios-version-min=$pdfiumIosDeploymentTarget"
+                    } else {
+                        "-mios-simulator-version-min=$pdfiumIosDeploymentTarget"
+                    },
+                    "-Wall",
+                    "-Wextra",
+                    "-Werror",
+                    "-I${nativeCoreHeaders.absolutePath}",
+                    "-I${pdfiumHeaders.absolutePath}",
+                    "-c",
+                    nativeCoreSource.absolutePath,
+                    "-o",
+                    nativeCoreObject.get().asFile.absolutePath,
+                )
+            }
+        val archiveNativeCore =
+            tasks.register<Exec>("archivePdfviewerCore$taskSuffix") {
+                dependsOn(compileNativeCore)
+                inputs.file(nativeCoreObject)
+                outputs.file(nativeCoreArchive)
+                commandLine(
+                    "xcrun",
+                    "--sdk",
+                    sdk,
+                    "ar",
+                    "rcs",
+                    nativeCoreArchive.get().asFile.absolutePath,
+                    nativeCoreObject.get().asFile.absolutePath,
+                )
+            }
 
         target.compilations.getByName("main") {
-            cinterops.create("pdfium") {
+            cinterops.create("pdfviewerCore") {
                 definitionFile.set(pdfiumInteropDefinition)
-                includeDirs(pdfiumHeaders)
+                includeDirs(nativeCoreHeaders)
             }
         }
 
         target.binaries.all {
             freeCompilerArgs += deploymentTargetOverride
             linkerOpts(
+                nativeCoreArchive.get().asFile.absolutePath,
                 "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
                 "-lpdfium",
             )
+            linkTaskProvider.configure {
+                dependsOn(archiveNativeCore)
+            }
         }
 
         target.binaries.framework {
             baseName = "PdfViewerKit"
         }
+    }
+
+    val syncPdfiumForIosSimulatorTests =
+        tasks.register<Copy>("syncPdfiumForIosSimulatorTests") {
+            dependsOn("linkDebugTestIosSimulatorArm64")
+            from(
+                pdfiumLibraries.resolve(
+                    "iosSimulatorArm64/libpdfium.dylib",
+                ),
+            )
+            into(
+                layout.buildDirectory.dir(
+                    "bin/iosSimulatorArm64/debugTest/Frameworks",
+                ),
+            )
+        }
+    tasks.named<KotlinNativeTest>("iosSimulatorArm64Test") {
+        dependsOn(syncPdfiumForIosSimulatorTests)
     }
 
     sourceSets {

@@ -1,6 +1,7 @@
 package io.github.limuyang2.pdf.viewer
 
 import io.github.limuyang2.pdf.viewer.internal.PdfDocumentState
+import io.github.limuyang2.pdf.viewer.internal.OwnedPdfSource
 import io.github.limuyang2.pdf.viewer.internal.PdfiumOperation
 import io.github.limuyang2.pdf.viewer.internal.PdfiumBackendProvider
 import io.github.limuyang2.pdf.viewer.internal.PdfiumRuntime
@@ -13,41 +14,62 @@ public object PdfViewer {
         get() = PdfiumBackendProvider.backend.capabilities
 
     /**
-     * Opens [source] and retains it until the returned document is closed.
+     * Opens [source] and takes ownership of it immediately.
+     *
+     * The source is closed after failure, cancellation, or closure of the
+     * returned document.
      */
     public suspend fun open(
         source: PdfSource,
         password: String? = null,
     ): PdfDocument {
         val backend = PdfiumBackendProvider.backend
-        val openedDocument =
-            PdfiumOperation.execute(
-                onCancelled = { opened ->
+        val ownedSource = OwnedPdfSource(source)
+        try {
+            val openedDocument =
+                PdfiumOperation.execute(
+                    onCancelled = { opened ->
+                        var failure: Throwable? = null
+                        try {
+                            backend.close(opened.handle)
+                        } catch (closeFailure: Throwable) {
+                            failure = closeFailure
+                        }
+                        try {
+                            PdfiumRuntime.release(backend)
+                        } catch (releaseFailure: Throwable) {
+                            if (failure == null) {
+                                failure = releaseFailure
+                            } else {
+                                failure.addSuppressed(releaseFailure)
+                            }
+                        }
+                        ownedSource.closeAndAttachTo(failure)
+                        failure?.let { throw it }
+                    },
+                ) {
+                    PdfiumRuntime.acquire(backend)
                     try {
-                        backend.close(opened.handle)
-                    } finally {
-                        PdfiumRuntime.release(backend)
+                        backend.open(ownedSource.requireSource(), password)
+                    } catch (failure: Throwable) {
+                        try {
+                            PdfiumRuntime.release(backend)
+                        } catch (cleanupFailure: Throwable) {
+                            failure.addSuppressed(cleanupFailure)
+                        }
+                        throw failure
                     }
-                },
-            ) {
-                PdfiumRuntime.acquire(backend)
-                try {
-                    backend.open(source, password)
-                } catch (failure: Throwable) {
-                    try {
-                        PdfiumRuntime.release(backend)
-                    } catch (cleanupFailure: Throwable) {
-                        failure.addSuppressed(cleanupFailure)
-                    }
-                    throw failure
                 }
-            }
-        return PdfDocument(
-            PdfDocumentState(
-                backend = backend,
-                openedDocument = openedDocument,
-                source = source,
-            ),
-        )
+            return PdfDocument(
+                PdfDocumentState(
+                    backend = backend,
+                    openedDocument = openedDocument,
+                    ownedSource = ownedSource,
+                ),
+            )
+        } catch (failure: Throwable) {
+            ownedSource.closeAndAttachTo(failure)
+            throw failure
+        }
     }
 }

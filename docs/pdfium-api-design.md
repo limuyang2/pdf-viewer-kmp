@@ -94,14 +94,16 @@ this library.
 ## 5. Document sources
 
 ```kotlin
-public sealed interface PdfSource {
+public sealed interface PdfSource : AutoCloseable {
     /**
      * The document retains this array until PdfDocument.close().
      * Callers must not mutate it while the document is open.
      */
     public class Bytes(
         public val data: ByteArray,
-    ) : PdfSource
+    ) : PdfSource {
+        override fun close() = Unit
+    }
 
     /**
      * PDFium invokes reads synchronously. Implementations must not call back
@@ -119,6 +121,10 @@ public sealed interface PdfSource {
     }
 }
 ```
+
+Calling `PdfViewer.open()` transfers ownership of the source immediately.
+The source is closed exactly once when opening fails, opening is cancelled, or
+the resulting document closes. Callers must not reuse or close an owned source.
 
 `read()` returns the number of bytes copied. It must either fill the requested
 range or throw an exception. A short read is treated as I/O failure.
@@ -155,6 +161,8 @@ public class PdfDocument internal constructor(...) : AutoCloseable {
     public suspend fun pageLabel(pageIndex: Int): String?
 
     override fun close()
+
+    public suspend fun closeAndAwait()
 }
 ```
 
@@ -163,9 +171,13 @@ Rules:
 - `pageCount` is captured during successful open.
 - `get()` validates the index and returns a lightweight descriptor.
 - `PdfPage` does not keep an `FPDF_PAGE` open.
-- `close()` is idempotent.
+- `close()` and `closeAndAwait()` are idempotent and share the same exactly-once
+  cleanup path.
 - `close()` prevents new operations and waits for the current serialized
-  operation to finish before releasing native resources.
+  operation to finish before releasing native resources. It returns only after
+  the native document, runtime reference, and owned source are released.
+- `closeAndAwait()` provides the same completion guarantee without blocking the
+  calling thread while waiting for the process-wide gate.
 - Calls made after closing throw `PdfClosedException`.
 - Closing a document invalidates all page descriptors created from it.
 
@@ -481,10 +493,29 @@ public sealed interface PdfLinkTarget {
 
 public data class PdfDestination(
     val pageIndex: Int,
-    val x: Double?,
-    val y: Double?,
-    val zoom: Double?,
+    val view: PdfDestinationView,
 )
+
+public sealed interface PdfDestinationView {
+    data class Unknown(
+        val nativeViewMode: Int,
+        val parameters: List<Double>,
+    ) : PdfDestinationView
+
+    data class Xyz(
+        val x: Double?,
+        val y: Double?,
+        val zoom: Double?,
+    ) : PdfDestinationView
+
+    data object FitPage : PdfDestinationView
+    data class FitHorizontally(val top: Double?) : PdfDestinationView
+    data class FitVertically(val left: Double?) : PdfDestinationView
+    data class FitRectangle(val bounds: PdfRect) : PdfDestinationView
+    data object FitBoundingBox : PdfDestinationView
+    data class FitBoundingBoxHorizontally(val top: Double?) : PdfDestinationView
+    data class FitBoundingBoxVertically(val left: Double?) : PdfDestinationView
+}
 
 public data class PdfBookmark(
     val title: String,
@@ -547,7 +578,9 @@ immediately after the failed operation.
 
 ## 14. Concurrency and cancellation
 
-All operations that may parse, render, search, or perform I/O are suspending.
+Public operations that may parse, render, search, or perform I/O are
+suspending. Internal backend calls are synchronous because PDFium and the
+currently supported local sources expose synchronous APIs.
 
 Platform execution:
 
@@ -556,6 +589,9 @@ Platform execution:
 - JS/Wasm: serialized browser event-loop execution.
 
 The serialization scope is process-wide, not per document.
+No backend call may suspend while holding this gate. This guarantees that
+JavaScript cannot interleave `close()` with an active PDFium call and removes
+the need for deferred-close queues.
 
 Cancellation rules:
 
@@ -566,8 +602,10 @@ Cancellation rules:
 - true mid-render cancellation is reserved for the later progressive-render
   API.
 
-`PdfDocument.close()` is thread-safe and may wait for an operation already in
-progress. It must not race native destruction against rendering.
+`PdfDocument.close()` is thread-safe and may block while an operation is
+already in progress. `closeAndAwait()` suspends for the same condition. Neither
+method may race native destruction against rendering, and every concurrent
+closer returns only after cleanup completes.
 
 ## 15. Internal backend
 
@@ -580,56 +618,56 @@ internal value class NativeDocumentHandle(val value: Long)
 internal interface PdfiumBackend {
     val capabilities: PdfCapabilities
 
-    suspend fun open(
+    fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument
 
     fun close(document: NativeDocumentHandle)
 
-    suspend fun documentInformation(
+    fun documentInformation(
         document: NativeDocumentHandle,
     ): PdfDocumentInfo
 
-    suspend fun metadata(
+    fun metadata(
         document: NativeDocumentHandle,
     ): PdfMetadata
 
-    suspend fun pageInformation(
+    fun pageInformation(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfPageInfo
 
-    suspend fun render(
+    fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
     ): PdfBitmap
 
-    suspend fun extractText(
+    fun extractText(
         document: NativeDocumentHandle,
         pageIndex: Int,
         range: PdfTextRange?,
     ): String
 
-    suspend fun textLayout(
+    fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): PdfTextLayout
 
-    suspend fun search(
+    fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
     ): List<PdfSearchMatch>
 
-    suspend fun links(
+    fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): List<PdfLink>
 
-    suspend fun bookmarks(
+    fun bookmarks(
         document: NativeDocumentHandle,
     ): List<PdfBookmark>
 }
@@ -637,11 +675,16 @@ internal interface PdfiumBackend {
 
 The actual interface may be split into focused internal interfaces when
 implemented. The public API must not depend on that split.
+Backend implementations must not suspend or invoke document lifecycle methods
+reentrantly. Public suspend functions perform dispatcher selection,
+serialization, and cancellation checks around these synchronous calls.
 
 ## 16. Native bridge ABI
 
-Android and JVM use a narrow native bridge. JNI methods should represent whole
-semantic operations rather than individual `FPDF_*` calls.
+Android, JVM, and iOS share the same narrow native bridge implementation.
+Android and JVM use JNI adapters while iOS binds the C ABI through cinterop.
+Platform adapters perform data conversion only and contain no direct
+`FPDF_*` calls.
 
 The bridge follows these rules:
 

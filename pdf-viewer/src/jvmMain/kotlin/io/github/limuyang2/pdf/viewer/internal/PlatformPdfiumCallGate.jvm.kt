@@ -11,7 +11,7 @@ private val pdfiumDispatcher = Dispatchers.Default.limitedParallelism(1)
 private val pdfiumStateLock = Any()
 
 internal actual suspend fun <T> platformPdfiumCall(
-    operation: suspend () -> T,
+    operation: () -> T,
 ): T =
     withContext(pdfiumDispatcher) {
         pdfiumMutex.withLock {

@@ -1,6 +1,12 @@
 package io.github.limuyang2.pdf.viewer
 
-public sealed interface PdfSource {
+/**
+ * A synchronously readable PDF input owned by [PdfViewer.open].
+ *
+ * Ownership transfers as soon as `open()` is called. The source is closed
+ * after an open failure, cancellation, or closure of the resulting document.
+ */
+public sealed interface PdfSource : AutoCloseable {
     /**
      * A memory-backed PDF source.
      *
@@ -9,7 +15,9 @@ public sealed interface PdfSource {
      */
     public class Bytes(
         public val data: ByteArray,
-    ) : PdfSource
+    ) : PdfSource {
+        override fun close() = Unit
+    }
 
     /**
      * A synchronously readable random-access source.

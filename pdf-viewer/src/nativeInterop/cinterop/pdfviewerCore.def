@@ -1,0 +1,2 @@
+headers = pdfviewer_core.h
+package = io.github.limuyang2.pdf.viewer.internal.nativecore

@@ -1,5 +1,3 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-
 package io.github.limuyang2.pdf.viewer.internal
 
 import io.github.limuyang2.pdf.viewer.PdfIncorrectPasswordException
@@ -8,24 +6,24 @@ import io.github.limuyang2.pdf.viewer.PdfIoException
 import io.github.limuyang2.pdf.viewer.PdfNativeException
 import io.github.limuyang2.pdf.viewer.PdfPasswordRequiredException
 import io.github.limuyang2.pdf.viewer.PdfUnsupportedSecurityException
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_ERR_FILE
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_ERR_FORMAT
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_ERR_PASSWORD
-import io.github.limuyang2.pdf.viewer.internal.pdfium.FPDF_ERR_SECURITY
+private const val FPDF_ERR_FILE = 2uL
+private const val FPDF_ERR_FORMAT = 3uL
+private const val FPDF_ERR_PASSWORD = 4uL
+private const val FPDF_ERR_SECURITY = 5uL
 
 internal fun pdfiumOpenFailure(
     errorCode: ULong,
     passwordWasSupplied: Boolean,
 ): Throwable =
     when (errorCode) {
-        FPDF_ERR_FILE.toULong() -> PdfIoException()
-        FPDF_ERR_FORMAT.toULong() -> PdfInvalidFormatException()
-        FPDF_ERR_PASSWORD.toULong() ->
+        FPDF_ERR_FILE -> PdfIoException()
+        FPDF_ERR_FORMAT -> PdfInvalidFormatException()
+        FPDF_ERR_PASSWORD ->
             if (passwordWasSupplied) {
                 PdfIncorrectPasswordException()
             } else {
                 PdfPasswordRequiredException()
             }
-        FPDF_ERR_SECURITY.toULong() -> PdfUnsupportedSecurityException()
+        FPDF_ERR_SECURITY -> PdfUnsupportedSecurityException()
         else -> PdfNativeException(errorCode.toInt())
     }

@@ -41,15 +41,17 @@ class PdfDocumentLifecycleTest {
         runTest {
             val failure = PdfInvalidFormatException()
             val backend = FakePdfiumBackend().apply { openFailure = failure }
+            val source = TrackingPdfSource()
 
             withFakeBackend(backend) {
                 val thrown =
                     assertFailsWith<PdfInvalidFormatException> {
-                        PdfViewer.open(PdfSource.Bytes(byteArrayOf(1)))
+                        PdfViewer.open(source)
                     }
 
                 assertSame(failure, thrown)
                 assertEquals(0, backend.closeCount)
+                assertEquals(1, source.closeCount)
             }
         }
 
@@ -57,13 +59,59 @@ class PdfDocumentLifecycleTest {
     fun closeIsIdempotentAndReleasesBackendOnce() =
         runTest {
             withFakeBackend { backend ->
-                val document = PdfViewer.open(PdfSource.Bytes(byteArrayOf(1)))
+                val source = TrackingPdfSource()
+                val document = PdfViewer.open(source)
 
                 document.close()
                 document.close()
 
                 assertEquals(1, backend.closeCount)
+                assertEquals(1, source.closeCount)
                 assertEquals(listOf("close:1"), backend.calls)
+            }
+        }
+
+    @Test
+    fun closeAndAwaitCompletesAllCleanupAndRemainsIdempotentWithClose() =
+        runTest {
+            withFakeBackend { backend ->
+                val source = TrackingPdfSource()
+                val document = PdfViewer.open(source)
+
+                document.closeAndAwait()
+                document.close()
+
+                assertTrue(document.isClosed)
+                assertEquals(1, backend.closeCount)
+                assertEquals(1, backend.destroyCount)
+                assertEquals(1, source.closeCount)
+                assertNull(document.state.retainedSource)
+            }
+        }
+
+    @Test
+    fun everyCloseCallerObservesTheSameCleanupFailure() =
+        runTest {
+            withFakeBackend { backend ->
+                val failure = IllegalStateException("close failed")
+                backend.closeFailure = failure
+                val source = TrackingPdfSource()
+                val document = PdfViewer.open(source)
+
+                val first =
+                    assertFailsWith<IllegalStateException> {
+                        document.close()
+                    }
+                val second =
+                    assertFailsWith<IllegalStateException> {
+                        document.closeAndAwait()
+                    }
+
+                assertEquals(failure.message, first.message)
+                assertEquals(failure.message, second.message)
+                assertEquals(1, backend.closeCount)
+                assertEquals(1, backend.destroyCount)
+                assertEquals(1, source.closeCount)
             }
         }
 
@@ -82,8 +130,28 @@ class PdfDocumentLifecycleTest {
                 }
 
                 assertEquals(listOf("close:1"), backend.calls)
-            }
-        }
+    }
+}
+
+private class TrackingPdfSource : PdfSource.RandomAccess {
+    override val size: Long = 1
+    var closeCount: Int = 0
+        private set
+
+    override fun read(
+        offset: Long,
+        destination: ByteArray,
+        destinationOffset: Int,
+        length: Int,
+    ): Int {
+        destination[destinationOffset] = 1
+        return length
+    }
+
+    override fun close() {
+        closeCount += 1
+    }
+}
 
     @Test
     fun capabilitiesComeFromInstalledBackend() =

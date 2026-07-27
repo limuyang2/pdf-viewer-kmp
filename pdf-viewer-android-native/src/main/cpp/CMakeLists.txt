@@ -13,12 +13,14 @@ add_library(
     pdfviewer_bridge
     SHARED
     pdfviewer_bridge.cpp
+    "${CMAKE_CURRENT_LIST_DIR}/../../../../pdf-viewer-native-core/src/pdfviewer_core.cpp"
 )
 
 target_include_directories(
     pdfviewer_bridge
     PRIVATE
     "${CMAKE_CURRENT_LIST_DIR}/../../../../pdf-viewer/src/nativeInterop/cinterop/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../../../pdf-viewer-native-core/include"
 )
 
 target_compile_features(pdfviewer_bridge PRIVATE cxx_std_17)

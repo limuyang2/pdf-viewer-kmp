@@ -4,37 +4,22 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 private val pdfiumMutex = Mutex()
-private val pendingPdfiumCloseOperations = mutableListOf<() -> Unit>()
 
 internal actual suspend fun <T> platformPdfiumCall(
-    operation: suspend () -> T,
+    operation: () -> T,
 ): T =
     pdfiumMutex.withLock {
-        try {
-            operation()
-        } finally {
-            drainPendingPdfiumCloseOperations()
-        }
+        operation()
     }
 
 internal actual fun platformPdfiumClose(operation: () -> Unit) {
-    if (pdfiumMutex.tryLock()) {
-        try {
-            operation()
-            drainPendingPdfiumCloseOperations()
-        } finally {
-            pdfiumMutex.unlock()
-        }
-    } else {
-        // JavaScript and Wasm execute this state on one event-loop thread.
-        // The current operation drains the queue before releasing the gate.
-        pendingPdfiumCloseOperations += operation
+    check(pdfiumMutex.tryLock()) {
+        "PdfDocument.close() cannot be called reentrantly from a PDFium backend operation"
     }
-}
-
-private fun drainPendingPdfiumCloseOperations() {
-    while (pendingPdfiumCloseOperations.isNotEmpty()) {
-        pendingPdfiumCloseOperations.removeAt(0).invoke()
+    try {
+        operation()
+    } finally {
+        pdfiumMutex.unlock()
     }
 }
 

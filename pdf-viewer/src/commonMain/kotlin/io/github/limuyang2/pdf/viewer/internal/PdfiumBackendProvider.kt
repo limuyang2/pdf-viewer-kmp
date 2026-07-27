@@ -50,7 +50,7 @@ internal object UnavailablePdfiumBackend : PdfiumBackend {
 
     override fun destroy() = Unit
 
-    override suspend fun open(
+    override fun open(
         source: PdfSource,
         password: String?,
     ): OpenedDocument =
@@ -61,56 +61,56 @@ internal object UnavailablePdfiumBackend : PdfiumBackend {
     override fun close(document: NativeDocumentHandle): Nothing =
         unavailable()
 
-    override suspend fun documentInformation(document: NativeDocumentHandle): Nothing =
+    override fun documentInformation(document: NativeDocumentHandle): Nothing =
         unavailable()
 
-    override suspend fun metadata(document: NativeDocumentHandle): Nothing =
+    override fun metadata(document: NativeDocumentHandle): Nothing =
         unavailable()
 
-    override suspend fun bookmarks(document: NativeDocumentHandle): Nothing =
+    override fun bookmarks(document: NativeDocumentHandle): Nothing =
         unavailable()
 
-    override suspend fun pageLabel(
+    override fun pageLabel(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): Nothing = unavailable()
 
-    override suspend fun pageInformation(
+    override fun pageInformation(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): Nothing = unavailable()
 
-    override suspend fun render(
+    override fun render(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: io.github.limuyang2.pdf.viewer.PdfRenderRequest,
     ): Nothing = unavailable()
 
-    override suspend fun thumbnail(
+    override fun thumbnail(
         document: NativeDocumentHandle,
         pageIndex: Int,
         maximumSize: io.github.limuyang2.pdf.viewer.PdfPixelSize,
     ): Nothing = unavailable()
 
-    override suspend fun extractText(
+    override fun extractText(
         document: NativeDocumentHandle,
         pageIndex: Int,
         range: io.github.limuyang2.pdf.viewer.PdfTextRange?,
     ): Nothing = unavailable()
 
-    override suspend fun textLayout(
+    override fun textLayout(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): Nothing = unavailable()
 
-    override suspend fun search(
+    override fun search(
         document: NativeDocumentHandle,
         pageIndex: Int,
         query: String,
         options: io.github.limuyang2.pdf.viewer.PdfSearchOptions,
     ): Nothing = unavailable()
 
-    override suspend fun links(
+    override fun links(
         document: NativeDocumentHandle,
         pageIndex: Int,
     ): Nothing = unavailable()
