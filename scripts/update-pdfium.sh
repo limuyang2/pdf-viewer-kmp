@@ -114,11 +114,28 @@ extract_file linux-x64 lib/libpdfium.so \
 extract_file win-x64 bin/pdfium.dll \
     "$stage_dir/jvm/pdfium/win32-x86-64/pdfium.dll"
 
+sed 's/^asset\.wasm\.sha256=/asset.wasm.archive.sha256=/' \
+    "$manifest" > "$runtime_manifest"
+
+runtime_digest() {
+    classifier=$1
+    library=$2
+    digest=$(shasum -a 256 "$library" | awk '{print $1}')
+    printf 'runtime.%s.sha256=%s\n' "$classifier" "$digest" >> "$runtime_manifest"
+}
+
+runtime_digest mac-arm64 \
+    "$stage_dir/jvm/pdfium/darwin-aarch64/libpdfium.dylib"
+runtime_digest mac-x64 \
+    "$stage_dir/jvm/pdfium/darwin-x86-64/libpdfium.dylib"
+runtime_digest linux-x64 \
+    "$stage_dir/jvm/pdfium/linux-x86-64/libpdfium.so"
+runtime_digest win-x64 \
+    "$stage_dir/jvm/pdfium/win32-x86-64/pdfium.dll"
+
 extract_file wasm lib/pdfium.js "$web_glue"
 extract_file wasm lib/pdfium.wasm "$stage_dir/web/pdfium/pdfium.wasm"
 
-sed 's/^asset\.wasm\.sha256=/asset.wasm.archive.sha256=/' \
-    "$manifest" > "$runtime_manifest"
 wasm_digest=$(shasum -a 256 "$stage_dir/web/pdfium/pdfium.wasm" | awk '{print $1}')
 printf 'asset.wasm.sha256=%s\n' "$wasm_digest" >> "$runtime_manifest"
 cat \

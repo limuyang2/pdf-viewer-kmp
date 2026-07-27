@@ -36,4 +36,4 @@ internal actual fun <T> withPdfiumStateLock(operation: () -> T): T =
     synchronized(pdfiumStateLock, operation)
 
 internal actual fun platformPdfiumBackend(): PdfiumBackend =
-    UnavailablePdfiumBackend
+    JvmPdfiumBackend

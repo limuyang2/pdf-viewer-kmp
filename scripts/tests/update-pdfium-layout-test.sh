@@ -16,3 +16,21 @@ wasm_digest=$(shasum -a 256 "$web_pdfium_dir/pdfium.wasm" | awk '{print $1}')
 manifest_digest=$(sed -n 's/^asset.wasm.sha256=//p' "$web_manifest")
 
 test "$wasm_digest" = "$manifest_digest"
+
+verify_runtime_digest() {
+    classifier=$1
+    library=$2
+    expected=$(sed -n "s/^runtime\\.$classifier\\.sha256=//p" "$jvm_manifest")
+    actual=$(shasum -a 256 "$library" | awk '{print $1}')
+    test -n "$expected"
+    test "$actual" = "$expected"
+}
+
+verify_runtime_digest mac-arm64 \
+    "$project_root/pdf-core/src/jvmMain/resources/pdfium/darwin-aarch64/libpdfium.dylib"
+verify_runtime_digest mac-x64 \
+    "$project_root/pdf-core/src/jvmMain/resources/pdfium/darwin-x86-64/libpdfium.dylib"
+verify_runtime_digest linux-x64 \
+    "$project_root/pdf-core/src/jvmMain/resources/pdfium/linux-x86-64/libpdfium.so"
+verify_runtime_digest win-x64 \
+    "$project_root/pdf-core/src/jvmMain/resources/pdfium/win32-x86-64/pdfium.dll"

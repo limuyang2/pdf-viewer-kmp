@@ -9,9 +9,8 @@ The repository separates PDF content access from Compose presentation:
 - `pdf-viewer` is the Compose Multiplatform UI library and depends on
   `pdf-core`.
 
-The current preview supports Android and iOS arm64. JVM, JavaScript, and Wasm
-artifacts contain their PDFium binaries, but their Kotlin backends are still
-planned.
+The current preview supports Android, iOS arm64, JVM desktop, JavaScript
+browser, and Wasm browser targets.
 
 ## Installation
 
@@ -37,12 +36,33 @@ kotlin {
 | iOS x64 | Not supported |
 | iOS Catalyst | Not supported |
 | Android arm32/arm64/x86/x64 | Available |
-| JVM | Planned |
-| JavaScript/Wasm | Planned |
+| JVM macOS arm64/x64 | Available |
+| JVM Linux x64 | Available |
+| JVM Windows x64 | Available |
+| JavaScript browser | Available |
+| Wasm browser | Available |
 
 The bundled PDFium build is pinned to `chromium/7961`, uses binaries from
 [`bblanchon/pdfium-binaries`](https://github.com/bblanchon/pdfium-binaries),
 and does not include V8 or XFA.
+
+JVM applications on runtimes that enforce native-access policy may need:
+
+```text
+--enable-native-access=ALL-UNNAMED
+```
+
+The browser backend loads `pdfium/pdfium-adapter.js`, `pdfium.js`, and
+`pdfium.wasm` relative to the page. The included `webApp` Webpack
+configuration emits these files automatically. A different deployment path
+can be selected before the first PDF is opened:
+
+```javascript
+globalThis.__pdfViewerPdfiumBaseUrl = "/assets/pdfium/";
+```
+
+The configured path must contain the four files from
+`pdf-core/src/webMain/resources/pdfium`.
 
 ## Open and inspect a document
 
@@ -173,7 +193,7 @@ correct dylib.
 
 ## Available API
 
-Android and iOS both support:
+All implemented backends support:
 
 - `PdfSource.Bytes` and optional passwords;
 - page count and document lifecycle;
@@ -181,7 +201,7 @@ Android and iOS both support:
 - full-page BGRA8888 rendering, including background color, annotation,
   grayscale, LCD text, and quarter-turn rotation options.
 
-The iOS backend additionally supports:
+The iOS, JVM, JavaScript, and Wasm backends additionally support:
 
 - PDF version, permissions, metadata, and page labels;
 - basic page text extraction.

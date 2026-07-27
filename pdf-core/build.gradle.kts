@@ -169,6 +169,14 @@ kotlin {
             implementation(libs.kotlinx.coroutinesTest)
         }
 
+        jvmMain.dependencies {
+            implementation(libs.jna)
+        }
+
+        webMain.dependencies {
+            implementation(libs.wrappers.browser)
+        }
+
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.core)
             implementation(libs.androidx.runner)
