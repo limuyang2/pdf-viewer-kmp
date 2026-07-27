@@ -16,6 +16,10 @@
 PDF Viewer KMP is a PDFium-backed Kotlin Multiplatform library for reading,
 rendering, and displaying PDF documents.
 
+## Demo
+
+Download the signed Android demo: [pdf-viewer-kmp-demo.apk](demo/pdf-viewer-kmp-demo.apk).
+
 The project is split into two public libraries:
 
 | Library | Purpose |
