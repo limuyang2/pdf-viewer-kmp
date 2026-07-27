@@ -75,6 +75,7 @@ fun App() {
                                     onOpenPdf = backStack::add,
                                 )
                             }
+
                         is PdfRoute ->
                             NavEntry(key) {
                                 PdfDocumentScreen(
@@ -84,6 +85,7 @@ fun App() {
                                     },
                                 )
                             }
+
                         else -> error("Unknown navigation key: $key")
                     }
                 },
@@ -186,24 +188,21 @@ private fun PdfDocumentScreen(
     route: PdfRoute,
     onBack: () -> Unit,
 ) {
-    var document by
-        remember(route.resourcePath) {
-            mutableStateOf<PdfDocument?>(null)
-        }
-    var failure by
-        remember(route.resourcePath) {
-            mutableStateOf<Throwable?>(null)
-        }
+    var document by remember(route.resourcePath) {
+        mutableStateOf<PdfDocument?>(null)
+    }
+    var failure by remember(route.resourcePath) {
+        mutableStateOf<Throwable?>(null)
+    }
     val viewState = rememberPdfViewState()
 
     LaunchedEffect(route.resourcePath) {
         try {
-            document =
-                PdfViewer.open(
-                    PdfSource.Bytes(
-                        Res.readBytes(route.resourcePath),
-                    ),
-                )
+            document = PdfViewer.open(
+                PdfSource.Bytes(
+                    Res.readBytes(route.resourcePath),
+                ),
+            )
         } catch (openFailure: Throwable) {
             failure = openFailure
         }
@@ -263,10 +262,12 @@ private fun PdfDocumentScreen(
                         }
                     },
                 )
+
             failure != null ->
                 PdfOpenError(
                     failure = checkNotNull(failure),
                 )
+
             else ->
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -295,7 +296,7 @@ private fun PdfToolbar(
                 .windowInsetsPadding(
                     WindowInsets.safeDrawing.only(
                         WindowInsetsSides.Top +
-                            WindowInsetsSides.Horizontal,
+                                WindowInsetsSides.Horizontal,
                     ),
                 )
                 .padding(horizontal = 8.dp, vertical = 8.dp),
