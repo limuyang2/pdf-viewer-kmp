@@ -18,6 +18,8 @@ work_dir=$(mktemp -d "${TMPDIR:-/tmp}/pdfium-update.XXXXXX")
 download_dir="$work_dir/downloads"
 stage_dir="$work_dir/stage"
 manifest="$stage_dir/pdfium/manifest.properties"
+runtime_manifest="$stage_dir/runtime-manifest.properties"
+web_glue="$work_dir/pdfium.js"
 
 cleanup() {
     rm -rf "$work_dir"
@@ -112,8 +114,23 @@ extract_file linux-x64 lib/libpdfium.so \
 extract_file win-x64 bin/pdfium.dll \
     "$stage_dir/jvm/pdfium/win32-x86-64/pdfium.dll"
 
-extract_file wasm lib/pdfium.js "$stage_dir/web/pdfium/pdfium.js"
+extract_file wasm lib/pdfium.js "$web_glue"
 extract_file wasm lib/pdfium.wasm "$stage_dir/web/pdfium/pdfium.wasm"
+
+sed 's/^asset\.wasm\.sha256=/asset.wasm.archive.sha256=/' \
+    "$manifest" > "$runtime_manifest"
+wasm_digest=$(shasum -a 256 "$stage_dir/web/pdfium/pdfium.wasm" | awk '{print $1}')
+printf 'asset.wasm.sha256=%s\n' "$wasm_digest" >> "$runtime_manifest"
+cat \
+    "$project_root/scripts/pdfium-web/pdfium-module-prefix.js" \
+    "$web_glue" \
+    "$project_root/scripts/pdfium-web/pdfium-module-suffix.js" \
+    > "$stage_dir/web/pdfium/pdfium.js"
+cp "$project_root/scripts/pdfium-web/pdfium-adapter.js" \
+    "$stage_dir/web/pdfium/pdfium-adapter.js"
+mkdir -p "$stage_dir/jvm/pdfium"
+cp "$runtime_manifest" "$stage_dir/jvm/pdfium/manifest.properties"
+cp "$runtime_manifest" "$stage_dir/web/pdfium/manifest.properties"
 
 mkdir -p "$stage_dir/nativeInterop/cinterop"
 tar -xzf "$download_dir/pdfium-android-arm64.tgz" \
