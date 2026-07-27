@@ -4,7 +4,7 @@ import io.github.limuyang2.pdf.core.PdfBitmap
 import io.github.limuyang2.pdf.core.PdfClosedException
 import io.github.limuyang2.pdf.core.PdfPixelFormat
 
-internal class IosPdfBitmap(
+internal class OwnedPdfBitmap(
     override val width: Int,
     override val height: Int,
     override val stride: Int,
@@ -30,10 +30,7 @@ internal class IosPdfBitmap(
         require(destinationOffset.toLong() + source.size <= destination.size) {
             "destination does not have enough remaining capacity"
         }
-        source.copyInto(
-            destination = destination,
-            destinationOffset = destinationOffset,
-        )
+        source.copyInto(destination, destinationOffset)
     }
 
     override fun close() {

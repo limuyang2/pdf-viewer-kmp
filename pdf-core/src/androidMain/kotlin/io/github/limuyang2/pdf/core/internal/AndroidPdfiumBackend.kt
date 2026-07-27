@@ -160,7 +160,7 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         check(pixels.size == byteCountLong.toInt()) {
             "The Android PDFium bridge returned an invalid bitmap size"
         }
-        return AndroidPdfBitmap(
+        return OwnedPdfBitmap(
             width = width,
             height = height,
             stride = strideLong.toInt(),

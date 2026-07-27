@@ -310,7 +310,7 @@ internal object IosPdfiumBackend : PdfiumBackend {
                 }
             requireBridgeStatus(status, pageIndex)
         }
-        return IosPdfBitmap(width, height, strideLong.toInt(), pixels)
+        return OwnedPdfBitmap(width, height, strideLong.toInt(), pixels)
     }
 
     override fun thumbnail(
