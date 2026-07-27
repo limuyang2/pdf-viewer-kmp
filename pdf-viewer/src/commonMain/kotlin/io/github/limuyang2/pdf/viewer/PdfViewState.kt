@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -30,7 +29,7 @@ public class PdfViewState internal constructor(
 
     private var cachedDocument: PdfDocument? = null
     private val renderCache =
-        LinkedHashMap<PdfRenderCacheKey, ImageBitmap>()
+        PdfRenderCache<ImageBitmap>(MAX_CACHED_BITMAP_BYTES)
 
     public fun updateZoom(zoom: Float) {
         this.zoom = validateZoom(zoom)
@@ -77,9 +76,7 @@ public class PdfViewState internal constructor(
         key: PdfRenderCacheKey,
     ): ImageBitmap? {
         if (cachedDocument !== document) return null
-        val image = renderCache.remove(key) ?: return null
-        renderCache[key] = image
-        return image
+        return renderCache.get(key)
     }
 
     internal fun cacheImage(
@@ -88,17 +85,18 @@ public class PdfViewState internal constructor(
         image: ImageBitmap,
     ) {
         if (cachedDocument !== document) return
-        renderCache[key] = image
-        while (renderCache.size > MAX_CACHED_PAGES) {
-            val oldest = renderCache.keys.first()
-            renderCache.remove(oldest)
-        }
+        renderCache.put(
+            key = key,
+            value = image,
+            byteCount = key.width.toLong() * key.height * BYTES_PER_PIXEL,
+        )
     }
 
     internal companion object {
         const val MIN_ZOOM: Float = 1f
         const val MAX_ZOOM: Float = 4f
-        private const val MAX_CACHED_PAGES: Int = 8
+        private const val BYTES_PER_PIXEL: Long = 4
+        private const val MAX_CACHED_BITMAP_BYTES: Long = 64L * 1024 * 1024
 
         val Saver: Saver<PdfViewState, List<Number>> =
             Saver(

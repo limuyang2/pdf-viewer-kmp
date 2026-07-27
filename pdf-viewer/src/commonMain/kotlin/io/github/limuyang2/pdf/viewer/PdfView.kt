@@ -3,8 +3,10 @@ package io.github.limuyang2.pdf.viewer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,8 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -38,6 +43,7 @@ import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -68,27 +74,63 @@ public fun PdfView(
 
     state.bind(document)
     var viewportWidthPixels by remember { mutableIntStateOf(0) }
-    val transformableState =
-        rememberTransformableState { centroid, zoomChange, panChange, _ ->
-            val previousZoom = state.zoom
-            state.zoomBy(zoomChange)
-            val appliedZoom = state.zoom / previousZoom
+    var settledRenderWidthPixels by
+        remember(maxRenderDimension) {
+            mutableIntStateOf(0)
+        }
+    var transformInProgress by remember { mutableStateOf(false) }
+
+    fun applyTransform(
+        centroid: Offset,
+        zoomChange: Float,
+        panChange: Offset,
+    ) {
+        if (!zoomChange.isFinite() || zoomChange <= 0f) {
+            return
+        }
+        val previousZoom = state.zoom
+        state.zoomBy(zoomChange)
+        val appliedZoom = state.zoom / previousZoom
+        if (
+            state.zoom > PdfViewState.MIN_ZOOM ||
+            appliedZoom != 1f
+        ) {
             state.horizontalScrollState.dispatchRawDelta(
-                centroid.x * (appliedZoom - 1f) - panChange.x,
+                anchoredScrollDelta(
+                    currentScroll =
+                        state.horizontalScrollState.value.toFloat(),
+                    centroid = centroid.x,
+                    zoomChange = appliedZoom,
+                    panChange = panChange.x,
+                ),
             )
             state.listState.dispatchRawDelta(
-                centroid.y * (appliedZoom - 1f) - panChange.y,
+                anchoredScrollDelta(
+                    currentScroll =
+                        state.listState.firstVisibleItemScrollOffset
+                            .toFloat(),
+                    centroid = centroid.y,
+                    zoomChange = appliedZoom,
+                    panChange = panChange.y,
+                ),
             )
         }
+    }
 
     Box(
         modifier =
             modifier
                 .background(backgroundColor)
                 .onSizeChanged { viewportWidthPixels = it.width }
-                .transformable(
-                    state = transformableState,
-                    canPan = { state.zoom > PdfViewState.MIN_ZOOM },
+                .pdfTransformGestures(
+                    gestureKey = state,
+                    onTransformStarted = {
+                        transformInProgress = true
+                    },
+                    onTransform = ::applyTransform,
+                    onTransformStopped = {
+                        transformInProgress = false
+                    },
                 ),
     ) {
         if (viewportWidthPixels == 0) {
@@ -107,11 +149,26 @@ public fun PdfView(
                 .coerceAtLeast(1)
         val contentWidth = with(density) { contentWidthPixels.toDp() }
         val pageWidth = with(density) { displayedPageWidthPixels.toDp() }
-        val pageWidthPixels =
+        val requestedRenderWidthPixels =
             quantizeRenderWidth(
                 width = displayedPageWidthPixels,
                 maximum = maxRenderDimension,
             )
+
+        LaunchedEffect(requestedRenderWidthPixels, transformInProgress) {
+            if (settledRenderWidthPixels == 0) {
+                settledRenderWidthPixels = requestedRenderWidthPixels
+            } else if (
+                !transformInProgress &&
+                settledRenderWidthPixels != requestedRenderWidthPixels
+            ) {
+                delay(RENDER_SETTLE_DELAY_MILLIS)
+                settledRenderWidthPixels = requestedRenderWidthPixels
+            }
+        }
+        val pageWidthPixels =
+            settledRenderWidthPixels.takeIf { it > 0 }
+                ?: requestedRenderWidthPixels
 
         Box(
             modifier =
@@ -145,6 +202,63 @@ public fun PdfView(
         }
     }
 }
+
+private fun Modifier.pdfTransformGestures(
+    gestureKey: Any?,
+    onTransformStarted: () -> Unit,
+    onTransform: (centroid: Offset, zoomChange: Float, panChange: Offset) -> Unit,
+    onTransformStopped: () -> Unit,
+): Modifier =
+    pointerInput(gestureKey) {
+        awaitEachGesture {
+            var claimedByTransform = false
+            var transforming = false
+            var hasPressedPointers: Boolean
+            try {
+                do {
+                    val event =
+                        awaitPointerEvent(PointerEventPass.Initial)
+                    val pressedCount =
+                        event.changes.count { it.pressed }
+
+                    if (pressedCount >= MIN_TRANSFORM_POINTERS) {
+                        claimedByTransform = true
+                        if (!transforming) {
+                            transforming = true
+                            onTransformStarted()
+                        }
+                        onTransform(
+                            event.calculateCentroid(useCurrent = false),
+                            event.calculateZoom(),
+                            event.calculatePan(),
+                        )
+                    } else if (transforming) {
+                        transforming = false
+                        onTransformStopped()
+                    }
+
+                    if (claimedByTransform) {
+                        event.changes.forEach { it.consume() }
+                    }
+                    hasPressedPointers =
+                        event.changes.any { it.pressed }
+                } while (hasPressedPointers)
+            } finally {
+                if (transforming) {
+                    onTransformStopped()
+                }
+            }
+        }
+    }
+
+internal fun anchoredScrollDelta(
+    currentScroll: Float,
+    centroid: Float,
+    zoomChange: Float,
+    panChange: Float,
+): Float =
+    (currentScroll + centroid) * (zoomChange - 1f) -
+        panChange
 
 @Composable
 private fun PdfPage(
@@ -222,7 +336,7 @@ private fun PdfPage(
             )
         }
     var renderState by
-        remember(document, cacheKey) {
+        remember(document, pageIndex) {
             mutableStateOf<PdfPageRenderState>(
                 state
                     .cachedImage(document, cacheKey)
@@ -236,7 +350,9 @@ private fun PdfPage(
             renderState = PdfPageRenderState.Ready(it)
             return@LaunchedEffect
         }
-        renderState = PdfPageRenderState.Loading
+        if (renderState !is PdfPageRenderState.Ready) {
+            renderState = PdfPageRenderState.Loading
+        }
         try {
             val image =
                 withContext(Dispatchers.Default) {
@@ -255,7 +371,9 @@ private fun PdfPage(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (failure: Throwable) {
-            renderState = PdfPageRenderState.Failed
+            if (renderState !is PdfPageRenderState.Ready) {
+                renderState = PdfPageRenderState.Failed
+            }
             onError(pageIndex, failure)
         }
     }
@@ -385,4 +503,6 @@ private sealed interface PdfPageInformationState {
 }
 
 private const val RENDER_WIDTH_QUANTUM: Int = 128
+private const val RENDER_SETTLE_DELAY_MILLIS: Long = 150
+private const val MIN_TRANSFORM_POINTERS: Int = 2
 private const val DEFAULT_PAGE_ASPECT_RATIO: Float = 0.707f
