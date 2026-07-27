@@ -11,7 +11,7 @@ plugins {
 kotlin {
     val pdfiumIosDeploymentTarget = "26.0"
     val pdfiumLibraries =
-        project(":pdf-viewer").projectDir.resolve("src/nativeInterop/cinterop/lib")
+        project(":pdf-core").projectDir.resolve("src/nativeInterop/cinterop/lib")
 
     listOf(
         iosArm64() to "iosArm64",

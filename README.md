@@ -1,8 +1,13 @@
 # PDF Viewer KMP
 
-PDF Viewer KMP provides a platform-neutral Kotlin API for opening, inspecting,
-rendering, and reading PDF documents with
-[PDFium](https://pdfium.googlesource.com/pdfium/).
+PDF Viewer KMP provides PDFium-backed document access and a Compose
+Multiplatform viewer for Kotlin Multiplatform applications.
+
+The repository separates PDF content access from Compose presentation:
+
+- `pdf-core` owns the PDF API, PDFium backends, and native integration.
+- `pdf-viewer` is the Compose Multiplatform UI library and depends on
+  `pdf-core`.
 
 The current preview supports Android and iOS arm64. JVM, JavaScript, and Wasm
 artifacts contain their PDFium binaries, but their Kotlin backends are still
@@ -17,7 +22,7 @@ add the library module to `commonMain`:
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":pdf-viewer"))
+            implementation(project(":pdf-core"))
         }
     }
 }
@@ -42,8 +47,8 @@ and does not include V8 or XFA.
 ## Open and inspect a document
 
 ```kotlin
-import io.github.limuyang2.pdf.viewer.PdfSource
-import io.github.limuyang2.pdf.viewer.PdfViewer
+import io.github.limuyang2.pdf.core.PdfSource
+import io.github.limuyang2.pdf.core.PdfViewer
 
 suspend fun inspectPdf(pdfBytes: ByteArray) {
     val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
@@ -85,10 +90,10 @@ Missing and incorrect passwords are reported as
 ## Render a page
 
 ```kotlin
-import io.github.limuyang2.pdf.viewer.PdfPixelSize
-import io.github.limuyang2.pdf.viewer.PdfRenderRequest
-import io.github.limuyang2.pdf.viewer.PdfSource
-import io.github.limuyang2.pdf.viewer.PdfViewer
+import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfRenderRequest
+import io.github.limuyang2.pdf.core.PdfSource
+import io.github.limuyang2.pdf.core.PdfViewer
 
 suspend fun renderFirstPage(pdfBytes: ByteArray): RenderedPage {
     val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
@@ -159,9 +164,9 @@ The framework does not contain the PDFium dylib. An application consuming the
 framework must embed and sign the matching binary:
 
 - device:
-  `pdf-viewer/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib`
+  `pdf-core/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib`
 - simulator:
-  `pdf-viewer/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib`
+  `pdf-core/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib`
 
 The included `iosApp` Xcode project already selects, embeds, and signs the
 correct dylib.

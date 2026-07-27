@@ -3,8 +3,8 @@
 set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-module_dir="$project_root/pdf-viewer"
-android_native_module_dir="$project_root/pdf-viewer-android-native"
+module_dir="$project_root/pdf-core"
+android_native_module_dir="$project_root/pdf-core-android-native"
 version=${1:-chromium/7961}
 
 if ! printf '%s\n' "$version" | grep -Eq '^chromium/[0-9]+$'; then

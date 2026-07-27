@@ -1,0 +1,3 @@
+headers = fpdfview.h fpdf_doc.h fpdf_edit.h fpdf_text.h fpdf_thumbnail.h
+headerFilter = fpdf*.h
+package = io.github.limuyang2.pdf.core.internal.pdfium

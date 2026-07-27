@@ -21,10 +21,10 @@
 ### Task 1: Shared C ABI and host contract test
 
 **Files:**
-- Create: `pdf-viewer-native-core/include/pdfviewer_core.h`
-- Create: `pdf-viewer-native-core/src/pdfviewer_core.cpp`
-- Create: `pdf-viewer-native-core/tests/pdfviewer_core_test.cpp`
-- Create: `pdf-viewer-native-core/CMakeLists.txt`
+- Create: `pdf-core-native/include/pdfviewer_core.h`
+- Create: `pdf-core-native/src/pdfviewer_core.cpp`
+- Create: `pdf-core-native/tests/pdfviewer_core_test.cpp`
+- Create: `pdf-core-native/CMakeLists.txt`
 
 **Interfaces:**
 - Produces: `pdfv_initialize()`, `pdfv_destroy()`, `pdfv_open_memory()`, `pdfv_close_document()`, `pdfv_get_page_info()`, `pdfv_render_page()`, metadata, page-label, and text extraction buffer APIs.
@@ -38,11 +38,11 @@
 ### Task 2: Android adapter migration
 
 **Files:**
-- Modify: `pdf-viewer-android-native/src/main/cpp/CMakeLists.txt`
-- Replace: `pdf-viewer-android-native/src/main/cpp/pdfviewer_bridge.cpp`
-- Modify: `pdf-viewer/src/androidMain/kotlin/io/github/limuyang2/pdf/viewer/internal/AndroidPdfiumNative.kt`
-- Modify: `pdf-viewer/src/androidMain/kotlin/io/github/limuyang2/pdf/viewer/internal/AndroidPdfiumBackend.kt`
-- Test: `pdf-viewer/src/androidDeviceTest/kotlin/io/github/limuyang2/pdf/viewer/internal/AndroidPdfiumBackendCoreTest.kt`
+- Modify: `pdf-core-android-native/src/main/cpp/CMakeLists.txt`
+- Replace: `pdf-core-android-native/src/main/cpp/pdfviewer_bridge.cpp`
+- Modify: `pdf-core/src/androidMain/kotlin/io/github/limuyang2/pdf/viewer/internal/AndroidPdfiumNative.kt`
+- Modify: `pdf-core/src/androidMain/kotlin/io/github/limuyang2/pdf/viewer/internal/AndroidPdfiumBackend.kt`
+- Test: `pdf-core/src/androidDeviceTest/kotlin/io/github/limuyang2/pdf/viewer/internal/AndroidPdfiumBackendCoreTest.kt`
 
 **Interfaces:**
 - Consumes: the C ABI from Task 1.
@@ -56,11 +56,11 @@
 ### Task 3: iOS adapter migration
 
 **Files:**
-- Create: `pdf-viewer/src/nativeInterop/cinterop/pdfviewer_core.def`
-- Modify: `pdf-viewer/build.gradle.kts`
-- Replace: `pdf-viewer/src/iosMain/kotlin/io/github/limuyang2/pdf/viewer/internal/IosPdfiumBackend.kt`
-- Delete: `pdf-viewer/src/iosMain/kotlin/io/github/limuyang2/pdf/viewer/internal/IosPdfDocument.kt`
-- Modify: `pdf-viewer/src/iosTest/kotlin/io/github/limuyang2/pdf/viewer/internal/IosPdfiumBackendCoreTest.kt`
+- Create: `pdf-core/src/nativeInterop/cinterop/pdfviewer_core.def`
+- Modify: `pdf-core/build.gradle.kts`
+- Replace: `pdf-core/src/iosMain/kotlin/io/github/limuyang2/pdf/viewer/internal/IosPdfiumBackend.kt`
+- Delete: `pdf-core/src/iosMain/kotlin/io/github/limuyang2/pdf/viewer/internal/IosPdfDocument.kt`
+- Modify: `pdf-core/src/iosTest/kotlin/io/github/limuyang2/pdf/viewer/internal/IosPdfiumBackendCoreTest.kt`
 
 **Interfaces:**
 - Consumes: the C ABI from Task 1.
@@ -75,9 +75,9 @@
 ### Task 4: Complete destination model
 
 **Files:**
-- Modify: `pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/PdfNavigation.kt`
-- Modify: `pdf-viewer/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/contract/NavigationContract.kt`
-- Modify: `pdf-viewer/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/contract/FakePdfBackendContractTest.kt`
+- Modify: `pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/PdfNavigation.kt`
+- Modify: `pdf-core/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/contract/NavigationContract.kt`
+- Modify: `pdf-core/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/contract/FakePdfBackendContractTest.kt`
 - Modify: `docs/pdfium-api-design.md`
 
 **Interfaces:**
@@ -92,10 +92,10 @@
 ### Task 5: Source ownership
 
 **Files:**
-- Modify: `pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/PdfSource.kt`
-- Modify: `pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/PdfViewer.kt`
-- Modify: `pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/internal/PdfDocumentState.kt`
-- Modify: `pdf-viewer/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/internal/PdfDocumentLifecycleTest.kt`
+- Modify: `pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/PdfSource.kt`
+- Modify: `pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/PdfViewer.kt`
+- Modify: `pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/internal/PdfDocumentState.kt`
+- Modify: `pdf-core/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/internal/PdfDocumentLifecycleTest.kt`
 - Modify: `README.md`
 - Modify: `docs/pdfium-api-design.md`
 

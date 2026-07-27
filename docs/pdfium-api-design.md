@@ -2,7 +2,7 @@
 
 Status: approved scope, API draft
 PDFium baseline: `chromium/7961` (`152.0.7961.0`)
-Public package: `io.github.limuyang2.pdf.viewer`
+Public package: `io.github.limuyang2.pdf.core`
 
 ## 1. Scope
 

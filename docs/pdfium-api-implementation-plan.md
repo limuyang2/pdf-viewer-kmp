@@ -40,7 +40,7 @@ Introduce dependency-free public models without opening PDFium.
 ### Files
 
 ```text
-pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/
+pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/
   PdfCapabilities.kt
   PdfColor.kt
   PdfException.kt
@@ -65,7 +65,7 @@ pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/
 ### Tests
 
 ```text
-pdf-viewer/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/
+pdf-core/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/
   PdfGeometryTest.kt
   PdfRenderRequestTest.kt
   PdfSourceTest.kt
@@ -87,19 +87,19 @@ Build and test the public object lifecycle before integrating native code.
 ### Files
 
 ```text
-pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/
+pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/
   PdfViewer.kt
   PdfDocument.kt
   PdfPage.kt
 
-pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
   NativeDocumentHandle.kt
   OpenedDocument.kt
   PdfiumBackend.kt
   PdfiumBackendProvider.kt
   PdfDocumentState.kt
 
-pdf-viewer/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/internal/
   FakePdfiumBackend.kt
   PdfDocumentLifecycleTest.kt
   PdfPageApiTest.kt
@@ -139,17 +139,17 @@ Guarantee PDFium's process-wide single-entry requirement.
 
 ### Dependencies
 
-Add `kotlinx-coroutines-core` to `pdf-viewer` commonMain.
+Add `kotlinx-coroutines-core` to `pdf-core` commonMain.
 
 ### Files
 
 ```text
-pdf-viewer/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/commonMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
   PdfiumRuntime.kt
   PdfiumCallGate.kt
   PdfiumOperation.kt
 
-pdf-viewer/src/<platform>Main/kotlin/.../internal/
+pdf-core/src/<platform>Main/kotlin/.../internal/
   PlatformPdfiumCallGate.<platform>.kt
 ```
 
@@ -188,7 +188,7 @@ Define one behavior suite that every real backend must pass.
 ### Files
 
 ```text
-pdf-viewer/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/contract/
+pdf-core/src/commonTest/kotlin/io/github/limuyang2/pdf/viewer/contract/
   PdfBackendContract.kt
   DocumentContract.kt
   RenderingContract.kt
@@ -229,7 +229,7 @@ Prove the architecture end to end on the platform with working cinterop.
 ### Files
 
 ```text
-pdf-viewer/src/iosMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/iosMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
   IosPdfiumBackend.kt
   IosPdfiumRuntime.kt
   IosPdfDocument.kt
@@ -293,7 +293,7 @@ Provide the narrow C/C++ layer used by Android and JVM.
 ### Files
 
 ```text
-pdf-viewer/src/nativeInterop/bridge/
+pdf-core/src/nativeInterop/bridge/
   CMakeLists.txt
   include/pdfviewer_bridge.h
   pdfviewer_bridge.cpp
@@ -320,7 +320,7 @@ pdf-viewer/src/nativeInterop/bridge/
 ### Native tests
 
 ```text
-pdf-viewer/src/nativeInterop/bridge/tests/
+pdf-core/src/nativeInterop/bridge/tests/
   runtime_test.cpp
   document_test.cpp
   rendering_test.cpp
@@ -346,13 +346,13 @@ Connect the common backend to the native bridge through JNI.
 ### Files
 
 ```text
-pdf-viewer/src/androidMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/androidMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
   AndroidPdfiumBackend.kt
   AndroidPdfiumNative.kt
   AndroidPdfBitmap.kt
   AndroidNativeLoader.kt
 
-pdf-viewer/src/androidMain/cpp/
+pdf-core/src/androidMain/cpp/
   CMakeLists.txt
 ```
 
@@ -395,13 +395,13 @@ Support macOS arm64/x64, Linux x64, and Windows x64.
 ### Files
 
 ```text
-pdf-viewer/src/jvmMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/jvmMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
   JvmPdfiumBackend.kt
   JvmPdfiumNative.kt
   JvmNativeLoader.kt
   JvmPdfBitmap.kt
 
-pdf-viewer/src/jvmMain/resources/pdfium/
+pdf-core/src/jvmMain/resources/pdfium/
   <platform>/libpdfviewer_bridge.*
 ```
 
@@ -439,16 +439,16 @@ Wrap the bundled Emscripten module with the same semantic backend.
 ### Files
 
 ```text
-pdf-viewer/src/webMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
+pdf-core/src/webMain/kotlin/io/github/limuyang2/pdf/viewer/internal/
   WebPdfiumModule.kt
   WebPdfiumMemory.kt
   WebPdfiumBackend.kt
   WebPdfBitmap.kt
 
-pdf-viewer/src/jsMain/kotlin/.../internal/
+pdf-core/src/jsMain/kotlin/.../internal/
   JsPdfiumInterop.kt
 
-pdf-viewer/src/wasmJsMain/kotlin/.../internal/
+pdf-core/src/wasmJsMain/kotlin/.../internal/
   WasmPdfiumInterop.kt
 ```
 
