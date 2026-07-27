@@ -69,9 +69,9 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * [onLinkClick] runs before the built-in link behavior. Return `true` to
  * consume the link. Returning `false` lets [PdfView] navigate internal
- * destinations or open URI links through the platform URI handler.
- * When [onUriLinkClick] is provided, it replaces the platform URI handler
- * for URI link targets. Link activation failures are reported through
+ * destinations. By default, URI links open through the platform URI handler.
+ * Pass `null` to [onUriLinkClick] to ignore them, or provide a callback to
+ * replace the default behavior. Link activation failures are reported through
  * [onLinkError], separately from page loading and rendering failures.
  *
  * Set [pageBorder] to `null` to render pages without a border.
@@ -93,9 +93,12 @@ fun PdfView(
     pageBorder: BorderStroke? = BorderStroke(1.dp, Color(0x22000000)),
     pageLoadingContent: @Composable BoxScope.(pageIndex: Int) -> Unit = {},
     pageErrorContent: (@Composable BoxScope.(pageIndex: Int, error: Throwable) -> Unit)? = null,
-    onUriLinkClick: ((uri: String) -> Unit)? = null,
+    onUriLinkClick: ((uri: String) -> Unit)? = DefaultOnUriLinkClick,
     onLinkError: (pageIndex: Int, link: PdfLink, error: Throwable) -> Unit = { _, _, _ -> },
 ) {
+    require(!document.isClosed) {
+        "PdfView requires an open PdfDocument"
+    }
     require(pageSpacing >= 0.dp) { "pageSpacing must be non-negative" }
     require(pagePadding >= 0.dp) { "pagePadding must be non-negative" }
     require(maxRenderDimension > 0) {
@@ -137,14 +140,16 @@ fun PdfView(
                 }
             }
             is PdfLinkTarget.Uri -> {
-                try {
-                    if (onUriLinkClick != null) {
-                        onUriLinkClick(target.uri)
-                    } else {
-                        uriHandler.openUri(target.uri)
+                if (onUriLinkClick != null) {
+                    try {
+                        if (onUriLinkClick === DefaultOnUriLinkClick) {
+                            uriHandler.openUri(target.uri)
+                        } else {
+                            onUriLinkClick(target.uri)
+                        }
+                    } catch (failure: Throwable) {
+                        onLinkError(pageIndex, link, failure)
                     }
-                } catch (failure: Throwable) {
-                    onLinkError(pageIndex, link, failure)
                 }
             }
             is PdfLinkTarget.RemoteDocument,
@@ -759,3 +764,4 @@ private const val RENDER_WIDTH_QUANTUM: Int = 128
 private const val RENDER_SETTLE_DELAY_MILLIS: Long = 100
 private const val MIN_TRANSFORM_POINTERS: Int = 2
 private const val DEFAULT_PAGE_ASPECT_RATIO: Float = 0.707f
+private val DefaultOnUriLinkClick: (String) -> Unit = {}

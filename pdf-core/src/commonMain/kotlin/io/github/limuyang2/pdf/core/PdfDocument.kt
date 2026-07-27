@@ -1,5 +1,6 @@
 package io.github.limuyang2.pdf.core
 
+import androidx.compose.runtime.Stable
 import io.github.limuyang2.pdf.core.internal.NativeDocumentHandle
 import io.github.limuyang2.pdf.core.internal.PdfDocumentState
 import io.github.limuyang2.pdf.core.internal.PdfiumBackend
@@ -8,8 +9,10 @@ import io.github.limuyang2.pdf.core.internal.PdfiumBackend
  * An open PDF document.
  *
  * Closing is idempotent and invalidates every [PdfPage] descriptor created
- * from this document.
+ * from this document. Stop using the document in UI and page operations
+ * before closing it. A closed document must never be reused.
  */
+@Stable
 class PdfDocument internal constructor(
     internal val state: PdfDocumentState,
 ) : AutoCloseable {
