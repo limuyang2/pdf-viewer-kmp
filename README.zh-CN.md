@@ -1,5 +1,8 @@
 # PDF Viewer KMP
 
+[![pdf-core on Maven Central](https://img.shields.io/maven-central/v/io.github.limuyang2/pdf-core.svg?label=pdf-core)](https://central.sonatype.com/artifact/io.github.limuyang2/pdf-core)
+[![pdf-viewer on Maven Central](https://img.shields.io/maven-central/v/io.github.limuyang2/pdf-viewer.svg?label=pdf-viewer)](https://central.sonatype.com/artifact/io.github.limuyang2/pdf-viewer)
+
 [English](README.md)
 
 ## 文档
