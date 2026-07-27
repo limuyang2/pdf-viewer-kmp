@@ -1,38 +1,98 @@
 # PDF Viewer KMP
 
-PDF Viewer KMP provides PDFium-backed document access and a Compose
-Multiplatform viewer for Kotlin Multiplatform applications.
+[简体中文](README.zh-CN.md)
 
-The repository separates PDF content access from Compose presentation:
+## Documentation / 文档
 
-- `pdf-core` owns the PDF API, PDFium backends, and native integration.
-- `pdf-viewer` is the Compose Multiplatform UI library and depends on
-  `pdf-core`.
+| Library | English | 简体中文 |
+| --- | --- | --- |
+| `pdf-core` | [Using PDF Core](docs/using-pdf-core.md) | [PDF Core 使用指南](docs/using-pdf-core.zh-CN.md) |
+| `pdf-viewer` | [Using PDF Viewer](docs/using-pdf-viewer.md) | [PDF Viewer 使用指南](docs/using-pdf-viewer.zh-CN.md) |
 
-The current preview supports Android, iOS arm64, JVM desktop, JavaScript
-browser, and Wasm browser targets.
+PDF Viewer KMP is a PDFium-backed Kotlin Multiplatform library for reading,
+rendering, and displaying PDF documents.
 
-## Installation
+The project is split into two public libraries:
 
-A Maven artifact is not published yet. When using this repository directly,
-add the library module to `commonMain`:
+| Library | Purpose |
+| --- | --- |
+| `pdf-core` | Opens PDF documents and exposes metadata, page rendering, text, search, and links without requiring Compose UI. |
+| `pdf-viewer` | Provides the `PdfView` Compose Multiplatform component. It depends on `pdf-core` transitively. |
+
+## Platform support
+
+| Platform | Supported targets |
+| --- | --- |
+| Android | arm32, arm64, x86, x64 |
+| iOS | device arm64, simulator arm64 |
+| JVM desktop | macOS arm64/x64, Linux x64, Windows x64 |
+| Browser | JavaScript, Wasm |
+
+iOS x64 and Catalyst are not currently supported. The bundled PDFium build is
+pinned to `chromium/7961` and does not include V8 or XFA.
+
+## Add the dependency
+
+Add Maven Central and choose the library needed by `commonMain`:
 
 ```kotlin
+repositories {
+    mavenCentral()
+}
+
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":pdf-viewer"))
+            // PDF APIs only:
+            implementation("io.github.limuyang2:pdf-core:0.1.0")
+
+            // Or the Compose viewer. pdf-core is included transitively:
+            implementation("io.github.limuyang2:pdf-viewer:0.1.0")
         }
     }
 }
 ```
 
-Applications that only need document access and rendering pixels can depend on
-`pdf-core` directly.
+## Quick start: PDF Core
 
-## Compose PDF preview
+Use `pdf-core` when the application needs to inspect or render PDFs without the
+built-in Compose UI:
 
-Open a document with `pdf-core`, then pass it to `PdfView`:
+```kotlin
+import io.github.limuyang2.pdf.core.PdfPixelSize
+import io.github.limuyang2.pdf.core.PdfRenderRequest
+import io.github.limuyang2.pdf.core.PdfSource
+import io.github.limuyang2.pdf.core.PdfViewer
+
+suspend fun renderFirstPage(pdfBytes: ByteArray): ByteArray {
+    val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
+    try {
+        require(document.pageCount > 0)
+
+        val bitmap =
+            document[0].render(
+                PdfRenderRequest(
+                    outputSize = PdfPixelSize(1200, 1600),
+                ),
+            )
+        try {
+            return bitmap.copyPixels()
+        } finally {
+            bitmap.close()
+        }
+    } finally {
+        document.close()
+    }
+}
+```
+
+See [Using PDF Core](docs/using-pdf-core.md) for passwords, metadata, text,
+search, links, bitmap formats, resource ownership, exceptions, and
+platform-specific setup.
+
+## Quick start: PDF Viewer
+
+`pdf-viewer` displays every page in a vertically scrolling Compose view:
 
 ```kotlin
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,217 +110,53 @@ fun DocumentPreview(document: PdfDocument) {
         document = document,
         state = state,
         modifier = Modifier.fillMaxSize(),
+        maxZoom = 4f,
+        gestureZoomEnabled = true,
     )
 }
 ```
 
-`PdfView` displays a vertically scrolling page list, fits pages to the full
-viewport width at 100%, and supports 1x to 4x zoom through gestures or
-`PdfViewState`. Pass `pagePadding` when the viewer should retain space around
-each page. It keeps a small rendered-page cache and limits either bitmap
-dimension to 4096 pixels by default. Use `scrollToPage()`,
-`animateScrollToPage()`, `updateZoom()`, and `clearRenderCache()` for external
-controls.
+The caller owns `PdfDocument` and must close it when the screen is disposed.
+`PdfView` only closes its temporary rendered bitmaps.
 
-PDF link annotations are clickable. Internal destinations jump to their target
-page and URI actions open through the platform URI handler. Use `onLinkClick`
-to inspect or replace the default behavior; return `true` when the callback
-consumes the link.
+See [Using PDF Viewer](docs/using-pdf-viewer.md) for opening a document in
+Compose, state control, zoom configuration, render limits, custom loading and
+error UI, and link handling.
 
-The caller owns the `PdfDocument` and must close it when the preview leaves the
-composition. `PdfView` closes its temporary `PdfBitmap` values but does not
-close the document.
+## Platform setup at a glance
 
-## Platform support
+- **Android:** supports API 24 and newer. The PDFium JNI runtime is loaded
+  automatically.
+- **JVM:** native PDFium libraries are bundled and extracted automatically to
+  the system temporary directory. Some runtimes may require
+  `--enable-native-access=ALL-UNNAMED`.
+- **Browser:** deploy `manifest.properties`, `pdfium-adapter.js`, `pdfium.js`,
+  and `pdfium.wasm` under the configured PDFium asset directory.
+- **iOS:** the minimum deployment target is iOS 26.0. The application must
+  embed and sign the matching `libpdfium.dylib`.
 
-| Platform | Status |
-| --- | --- |
-| iOS device arm64 | Available |
-| iOS simulator arm64 | Available |
-| iOS x64 | Not supported |
-| iOS Catalyst | Not supported |
-| Android arm32/arm64/x86/x64 | Available |
-| JVM macOS arm64/x64 | Available |
-| JVM Linux x64 | Available |
-| JVM Windows x64 | Available |
-| JavaScript browser | Available |
-| Wasm browser | Available |
+The detailed setup commands are in
+[Using PDF Core](docs/using-pdf-core.md#platform-specific-setup).
 
-The bundled PDFium build is pinned to `chromium/7961`, uses binaries from
-[`bblanchon/pdfium-binaries`](https://github.com/bblanchon/pdfium-binaries),
-and does not include V8 or XFA.
+## Current capabilities
 
-JVM applications on runtimes that enforce native-access policy may need:
+All current backends support:
 
-```text
---enable-native-access=ALL-UNNAMED
-```
+- byte-array sources and password-protected documents;
+- document information, permissions, metadata, and page labels;
+- page size, intrinsic rotation, and bounding boxes;
+- full-page BGRA8888 rendering;
+- basic text extraction;
+- internal destinations, URI actions, and link annotation bounds.
 
-The browser backend loads `pdfium/pdfium-adapter.js`, `pdfium.js`, and
-`pdfium.wasm` relative to the page. The included `webApp` Webpack
-configuration emits these files automatically. A different deployment path
-can be selected before the first PDF is opened:
+Android additionally supports text search. Check `PdfViewer.capabilities`
+before calling optional APIs.
 
-```javascript
-globalThis.__pdfViewerPdfiumBaseUrl = "/assets/pdfium/";
-```
+Not yet implemented: bookmarks, embedded thumbnails, text layout geometry on
+the public backends, search outside Android, random-access sources, cropped
+rendering, forms, editing, progressive loading/rendering, JavaScript, and XFA.
+Unavailable operations throw `PdfUnsupportedFeatureException`.
 
-The configured path must contain the four files from
-`pdf-core/src/webMain/resources/pdfium`.
+## License
 
-## Open and inspect a document
-
-```kotlin
-import io.github.limuyang2.pdf.core.PdfSource
-import io.github.limuyang2.pdf.core.PdfViewer
-
-suspend fun inspectPdf(pdfBytes: ByteArray) {
-    val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
-    try {
-        println("Pages: ${document.pageCount}")
-
-        if (document.pageCount > 0) {
-            val page = document[0]
-            val information = page.information()
-            println(
-                "Page size: ${information.size.width} × " +
-                    "${information.size.height} points",
-            )
-        }
-    } finally {
-        document.close()
-    }
-}
-```
-
-Password-protected documents can be opened by passing `password`:
-
-```kotlin
-val document =
-    PdfViewer.open(
-        source = PdfSource.Bytes(pdfBytes),
-        password = "secret",
-    )
-try {
-    // Read or render the document.
-} finally {
-    document.close()
-}
-```
-
-Missing and incorrect passwords are reported as
-`PdfPasswordRequiredException` and `PdfIncorrectPasswordException`.
-
-## Render a page
-
-```kotlin
-import io.github.limuyang2.pdf.core.PdfPixelSize
-import io.github.limuyang2.pdf.core.PdfRenderRequest
-import io.github.limuyang2.pdf.core.PdfSource
-import io.github.limuyang2.pdf.core.PdfViewer
-
-suspend fun renderFirstPage(pdfBytes: ByteArray): RenderedPage {
-    val document = PdfViewer.open(PdfSource.Bytes(pdfBytes))
-    try {
-        require(document.pageCount > 0)
-
-        val bitmap =
-            document[0].render(
-                PdfRenderRequest(
-                    outputSize = PdfPixelSize(width = 1200, height = 1600),
-                ),
-            )
-        try {
-            return RenderedPage(
-                width = bitmap.width,
-                height = bitmap.height,
-                stride = bitmap.stride,
-                bgraPixels = bitmap.copyPixels(),
-            )
-        } finally {
-            bitmap.close()
-        }
-    } finally {
-        document.close()
-    }
-}
-
-data class RenderedPage(
-    val width: Int,
-    val height: Int,
-    val stride: Int,
-    val bgraPixels: ByteArray,
-)
-```
-
-Rendering currently produces full-page `Bgra8888` pixels. `stride` is the
-number of bytes between adjacent rows and should be used instead of assuming
-tightly packed rows.
-
-## Resource ownership
-
-- Always close `PdfDocument` and `PdfBitmap`; both support idempotent `close()`.
-- `PdfDocument.close()` is synchronous and returns only after native resources
-  and the owned source are released. Use `closeAndAwait()` when waiting for an
-  active operation must not block the calling thread.
-- A `PdfPage` is a lightweight descriptor and becomes unusable when its parent
-  document is closed.
-- Calling `PdfViewer.open()` transfers ownership of its `PdfSource`; the
-  source is closed after failure, cancellation, or document closure.
-- Do not mutate a `PdfSource.Bytes` array while its document is open.
-- A rendered bitmap owns its Kotlin pixel buffer and may outlive the document.
-- PDFium calls are serialized internally; callers may use the public suspend
-  API from different coroutines. Backend calls do not suspend while holding
-  the process-wide PDFium gate.
-
-## iOS integration
-
-The bundled iOS PDFium binaries require iOS 26.0. Applications and frameworks
-using this library must use the same or a newer deployment target.
-
-`PdfViewerKit.framework` links PDFium dynamically:
-
-```text
-@rpath/libpdfium.dylib
-```
-
-The framework does not contain the PDFium dylib. An application consuming the
-framework must embed and sign the matching binary:
-
-- device:
-  `pdf-core/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib`
-- simulator:
-  `pdf-core/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib`
-
-The included `iosApp` Xcode project already selects, embeds, and signs the
-correct dylib.
-
-## Available API
-
-All implemented backends support:
-
-- `PdfSource.Bytes` and optional passwords;
-- page count and document lifecycle;
-- page size, intrinsic rotation, and bounding box;
-- full-page BGRA8888 rendering, including background color, annotation,
-  grayscale, LCD text, and quarter-turn rotation options;
-- PDF version, permissions, metadata, and page labels;
-- basic page text extraction;
-- internal page links, URI actions, and link annotation bounds.
-
-Use `PdfViewer.capabilities` to inspect optional backend features at runtime.
-
-## Current limitations
-
-The following features are not available yet:
-
-- tiled rendering for very large zoom levels;
-- selectable text and viewer search UI;
-- random-access sources;
-- cropped or region rendering with `sourceRect`;
-- thumbnails;
-- text layout, character geometry, and search;
-- bookmarks;
-- forms, editing, progressive loading/rendering, JavaScript, and XFA.
-
-Calling an unavailable feature throws `PdfUnsupportedFeatureException`.
+[MIT](LICENSE)
