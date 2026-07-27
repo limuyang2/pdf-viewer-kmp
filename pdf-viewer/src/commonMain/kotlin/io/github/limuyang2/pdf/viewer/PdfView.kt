@@ -1,5 +1,6 @@
 package io.github.limuyang2.pdf.viewer
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +12,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,6 +69,13 @@ import kotlin.math.roundToInt
  * [onLinkClick] runs before the built-in link behavior. Return `true` to
  * consume the link. Returning `false` lets [PdfView] navigate internal
  * destinations or open URI links through the platform URI handler.
+ * When [onUriLinkClick] is provided, it replaces the platform URI handler
+ * for URI link targets.
+ *
+ * Set [pageBorder] to `null` to render pages without a border.
+ * [pageLoadingContent] is shown while page information or imagery is
+ * loading. [pageErrorContent] receives the original failure; when it is
+ * `null`, [PdfView] displays its built-in error message.
  */
 @Composable
 public fun PdfView(
@@ -79,6 +88,16 @@ public fun PdfView(
     maxRenderDimension: Int = 4096,
     onPageError: (pageIndex: Int, error: Throwable) -> Unit = { _, _ -> },
     onLinkClick: (PdfLink) -> Boolean = { false },
+    pageBorder: BorderStroke? =
+        BorderStroke(1.dp, Color(0x22000000)),
+    pageLoadingContent:
+        @Composable BoxScope.(pageIndex: Int) -> Unit = {},
+    pageErrorContent:
+        (@Composable BoxScope.(
+            pageIndex: Int,
+            error: Throwable,
+        ) -> Unit)? = null,
+    onUriLinkClick: ((uri: String) -> Unit)? = null,
 ) {
     require(pageSpacing >= 0.dp) { "pageSpacing must be non-negative" }
     require(pagePadding >= 0.dp) { "pagePadding must be non-negative" }
@@ -121,7 +140,11 @@ public fun PdfView(
             }
             is PdfLinkTarget.Uri -> {
                 try {
-                    uriHandler.openUri(target.uri)
+                    if (onUriLinkClick != null) {
+                        onUriLinkClick(target.uri)
+                    } else {
+                        uriHandler.openUri(target.uri)
+                    }
                 } catch (failure: Throwable) {
                     onPageError(pageIndex, failure)
                 }
@@ -245,6 +268,9 @@ public fun PdfView(
                         renderWidth = pageWidthPixels,
                         state = state,
                         pageColor = pageColor,
+                        pageBorder = pageBorder,
+                        pageLoadingContent = pageLoadingContent,
+                        pageErrorContent = pageErrorContent,
                         maxRenderDimension = maxRenderDimension,
                         onError = onPageError,
                         onLinkActivated = { link ->
@@ -322,6 +348,14 @@ private fun PdfPage(
     renderWidth: Int,
     state: PdfViewState,
     pageColor: Color,
+    pageBorder: BorderStroke?,
+    pageLoadingContent:
+        @Composable BoxScope.(pageIndex: Int) -> Unit,
+    pageErrorContent:
+        (@Composable BoxScope.(
+            pageIndex: Int,
+            error: Throwable,
+        ) -> Unit)?,
     maxRenderDimension: Int,
     onError: (Int, Throwable) -> Unit,
     onLinkActivated: (PdfLink) -> Unit,
@@ -346,7 +380,7 @@ private fun PdfPage(
                     throw cancellation
                 } catch (failure: Throwable) {
                     onError(pageIndex, failure)
-                    PdfPageInformationState.Failed
+                    PdfPageInformationState.Failed(failure)
                 }
         }
     val pageInformation =
@@ -356,15 +390,23 @@ private fun PdfPage(
                     width = width,
                     aspectRatio = DEFAULT_PAGE_ASPECT_RATIO,
                     pageColor = pageColor,
+                    pageBorder = pageBorder,
+                    pageIndex = pageIndex,
+                    pageLoadingContent = pageLoadingContent,
                 )
                 return
             }
-            PdfPageInformationState.Failed -> {
+            is PdfPageInformationState.Failed -> {
                 PdfPageError(
                     width = width,
                     aspectRatio = DEFAULT_PAGE_ASPECT_RATIO,
                     pageIndex = pageIndex,
                     pageColor = pageColor,
+                    pageBorder = pageBorder,
+                    error = current.error,
+                    defaultMessage =
+                        "Page ${pageIndex + 1} could not be loaded",
+                    pageErrorContent = pageErrorContent,
                 )
                 return
             }
@@ -445,7 +487,7 @@ private fun PdfPage(
             throw cancellation
         } catch (failure: Throwable) {
             if (renderState !is PdfPageRenderState.Ready) {
-                renderState = PdfPageRenderState.Failed
+                renderState = PdfPageRenderState.Failed(failure)
             }
             onError(pageIndex, failure)
         }
@@ -457,7 +499,7 @@ private fun PdfPage(
                 .width(width)
                 .aspectRatio(aspectRatio)
                 .background(pageColor)
-                .border(1.dp, Color(0x22000000))
+                .optionalBorder(pageBorder)
                 .pointerInput(links, pageInformation) {
                     detectTapGestures { position ->
                         findPdfLinkAt(
@@ -472,7 +514,8 @@ private fun PdfPage(
         contentAlignment = Alignment.Center,
     ) {
         when (val current = renderState) {
-            PdfPageRenderState.Loading -> Unit
+            PdfPageRenderState.Loading ->
+                pageLoadingContent(pageIndex)
             is PdfPageRenderState.Ready ->
                 Image(
                     bitmap = current.image,
@@ -480,11 +523,15 @@ private fun PdfPage(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillBounds,
                 )
-            PdfPageRenderState.Failed ->
-                BasicText(
-                    text = "Page ${pageIndex + 1} could not be rendered",
-                    style = TextStyle(color = Color(0xff991b1b)),
-                )
+            is PdfPageRenderState.Failed ->
+                if (pageErrorContent != null) {
+                    pageErrorContent(pageIndex, current.error)
+                } else {
+                    DefaultPageErrorContent(
+                        message =
+                            "Page ${pageIndex + 1} could not be rendered",
+                    )
+                }
         }
     }
 }
@@ -584,6 +631,14 @@ private fun PdfPageError(
     aspectRatio: Float,
     pageIndex: Int,
     pageColor: Color,
+    pageBorder: BorderStroke?,
+    error: Throwable,
+    defaultMessage: String,
+    pageErrorContent:
+        (@Composable BoxScope.(
+            pageIndex: Int,
+            error: Throwable,
+        ) -> Unit)?,
 ) {
     Box(
         modifier =
@@ -591,13 +646,14 @@ private fun PdfPageError(
                 .width(width)
                 .aspectRatio(aspectRatio)
                 .background(pageColor)
-                .border(1.dp, Color(0x22000000)),
+                .optionalBorder(pageBorder),
         contentAlignment = Alignment.Center,
     ) {
-        BasicText(
-            text = "Page ${pageIndex + 1} could not be loaded",
-            style = TextStyle(color = Color(0xff991b1b)),
-        )
+        if (pageErrorContent != null) {
+            pageErrorContent(pageIndex, error)
+        } else {
+            DefaultPageErrorContent(defaultMessage)
+        }
     }
 }
 
@@ -606,6 +662,10 @@ private fun PdfPagePlaceholder(
     width: Dp,
     aspectRatio: Float,
     pageColor: Color,
+    pageBorder: BorderStroke?,
+    pageIndex: Int,
+    pageLoadingContent:
+        @Composable BoxScope.(pageIndex: Int) -> Unit,
 ) {
     Box(
         modifier =
@@ -613,9 +673,29 @@ private fun PdfPagePlaceholder(
                 .width(width)
                 .aspectRatio(aspectRatio)
                 .background(pageColor)
-                .border(1.dp, Color(0x22000000)),
+                .optionalBorder(pageBorder),
+        contentAlignment = Alignment.Center,
+    ) {
+        pageLoadingContent(pageIndex)
+    }
+}
+
+@Composable
+private fun DefaultPageErrorContent(message: String) {
+    BasicText(
+        text = message,
+        style = TextStyle(color = Color(0xff991b1b)),
     )
 }
+
+private fun Modifier.optionalBorder(
+    border: BorderStroke?,
+): Modifier =
+    if (border == null) {
+        this
+    } else {
+        border(border)
+    }
 
 internal fun calculateRenderSize(
     pageInformation: PdfPageInfo,
@@ -662,7 +742,9 @@ private sealed interface PdfPageRenderState {
         val image: ImageBitmap,
     ) : PdfPageRenderState
 
-    data object Failed : PdfPageRenderState
+    data class Failed(
+        val error: Throwable,
+    ) : PdfPageRenderState
 }
 
 private sealed interface PdfPageInformationState {
@@ -672,7 +754,9 @@ private sealed interface PdfPageInformationState {
         val information: PdfPageInfo,
     ) : PdfPageInformationState
 
-    data object Failed : PdfPageInformationState
+    data class Failed(
+        val error: Throwable,
+    ) : PdfPageInformationState
 }
 
 private const val RENDER_WIDTH_QUANTUM: Int = 128

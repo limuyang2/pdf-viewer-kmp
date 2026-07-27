@@ -95,7 +95,7 @@ public sealed interface PdfDestinationView {
 }
 
 public sealed interface PdfLinkTarget {
-    public data class Internal(
+    data class Internal(
         val destination: PdfDestination,
     ) : PdfLinkTarget
 
