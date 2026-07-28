@@ -386,4 +386,4 @@ private fun searchStatusText(
             )
     }
 
-private const val DEFAULT_SEARCH_QUERY: String = "PDF"
+private const val DEFAULT_SEARCH_QUERY: String = "is"
