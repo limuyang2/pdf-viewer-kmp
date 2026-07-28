@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.github.limuyang2.pdf.core.PdfDocument
 import io.github.limuyang2.pdf.core.PdfLink
@@ -146,7 +147,9 @@ fun PdfView(
     }
 
     state.bind(document, maxZoom)
-    var viewportWidthPixels by remember { mutableIntStateOf(0) }
+    var viewportSizePixels by remember {
+        mutableStateOf(IntSize.Zero)
+    }
     var settledRenderWidthPixels by
         remember(maxRenderDimension) {
             mutableIntStateOf(0)
@@ -237,7 +240,7 @@ fun PdfView(
     Box(
         modifier =
             modifier
-                .onSizeChanged { viewportWidthPixels = it.width }
+                .onSizeChanged { viewportSizePixels = it }
                 .pdfTransformGestures(
                     enabled = gestureZoomEnabled,
                     gestureKey = state,
@@ -250,7 +253,10 @@ fun PdfView(
                     },
                 ),
     ) {
-        if (viewportWidthPixels == 0) {
+        if (
+            viewportSizePixels.width == 0 ||
+            viewportSizePixels.height == 0
+        ) {
             Box(Modifier.matchParentSize())
             return@Box
         }
@@ -258,7 +264,7 @@ fun PdfView(
         val density = LocalDensity.current
         val pagePaddingPixels = with(density) { pagePadding.roundToPx() }
         val contentWidthPixels =
-            (viewportWidthPixels * state.zoom)
+            (viewportSizePixels.width * state.zoom)
                 .roundToInt()
                 .coerceAtLeast(1)
         val displayedPageWidthPixels =
@@ -266,6 +272,16 @@ fun PdfView(
                 .coerceAtLeast(1)
         val contentWidth = with(density) { contentWidthPixels.toDp() }
         val pageWidth = with(density) { displayedPageWidthPixels.toDp() }
+        state.updateLayoutMetrics(
+            document = document,
+            metrics =
+                PdfViewLayoutMetrics(
+                    viewportWidth = viewportSizePixels.width,
+                    viewportHeight = viewportSizePixels.height,
+                    displayedPageWidth = displayedPageWidthPixels,
+                    pagePadding = pagePaddingPixels,
+                ),
+        )
         val requestedRenderWidthPixels =
             quantizeRenderWidth(
                 width = displayedPageWidthPixels,
@@ -417,19 +433,32 @@ private fun PdfPage(
     selectedSearchResult: PdfViewSearchResult?,
     searchHighlightStyle: PdfSearchHighlightStyle,
 ) {
+    val cachedPageInformation =
+        state.cachedPageInformation(document, pageIndex)
     val informationState by produceState<PdfPageInformationState>(
-        initialValue = PdfPageInformationState.Loading,
+        initialValue =
+            cachedPageInformation
+                ?.let(PdfPageInformationState::Ready)
+                ?: PdfPageInformationState.Loading,
         document,
         pageIndex,
+        cachedPageInformation,
     ) {
         value = try {
-            val information = document[pageIndex].information()
+            val information =
+                cachedPageInformation
+                    ?: document[pageIndex].information()
             check(
                 information.size.width > 0.0 &&
                         information.size.height > 0.0,
             ) {
                 "PDF page ${pageIndex + 1} has an invalid size"
             }
+            state.cachePageInformation(
+                document = document,
+                pageIndex = pageIndex,
+                information = information,
+            )
             PdfPageInformationState.Ready(information)
         } catch (cancellation: CancellationException) {
             throw cancellation

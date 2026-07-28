@@ -10,20 +10,20 @@ import androidx.compose.ui.unit.dp
  */
 @Immutable
 data class PdfSearchHighlightStyle(
-    val match: PdfSearchHighlightDecoration =
-        PdfSearchHighlightDecoration(
-            fillColor = Color(0x66FFEB3B),
-        ),
-    val selectedMatch: PdfSearchHighlightDecoration =
-        PdfSearchHighlightDecoration(
-            fillColor = Color(0x80FF9800),
-            strokeColor = Color(0xFFFF6D00),
-            strokeWidth = 1.dp,
-        ),
+    /** Decoration used for every non-selected match. */
+    val match: PdfSearchHighlightDecoration = PdfSearchHighlightDecoration(
+        fillColor = Color(0x66FFEB3B),
+    ),
+    /** Decoration used for the currently selected match. */
+    val selectedMatch: PdfSearchHighlightDecoration = PdfSearchHighlightDecoration(
+        fillColor = Color(0x80FF9800),
+        strokeColor = Color(0xFFFF6D00),
+        strokeWidth = 1.dp,
+    ),
 ) {
     companion object {
-        val Default: PdfSearchHighlightStyle =
-            PdfSearchHighlightStyle()
+        /** Yellow matches with an orange selected match. */
+        val Default: PdfSearchHighlightStyle = PdfSearchHighlightStyle()
     }
 }
 
@@ -32,10 +32,15 @@ data class PdfSearchHighlightStyle(
  */
 @Immutable
 data class PdfSearchHighlightDecoration(
+    /** Color painted inside the match rectangle. */
     val fillColor: Color,
+    /** Optional outline color. */
     val strokeColor: Color = Color.Transparent,
+    /** Outline width; `0.dp` disables the outline. */
     val strokeWidth: Dp = 0.dp,
+    /** Radius applied to all rectangle corners. */
     val cornerRadius: Dp = 1.dp,
+    /** Space added outside the PDF-reported match bounds. */
     val padding: Dp = 0.dp,
 ) {
     init {

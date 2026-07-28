@@ -230,13 +230,13 @@ val selectedResult = state.selectedSearchResult
 ```kotlin
 scope.launch {
     state.selectNextSearchResult()?.let { result ->
-        state.animateScrollToPage(result.pageIndex)
+        state.animateScrollToSearchResult(result)
     }
 }
 
 scope.launch {
     state.selectPreviousSearchResult()?.let { result ->
-        state.animateScrollToPage(result.pageIndex)
+        state.animateScrollToSearchResult(result)
     }
 }
 ```
@@ -244,6 +244,24 @@ scope.launch {
 两种导航方法默认会首尾循环，传入 `wrapAround = false` 可停在边界。
 也可以调用 `selectSearchResult(index)` 直接选择结果，或调用
 `clearSearch()` 清除搜索。
+
+`animateScrollToSearchResult()` 会根据匹配矩形、页面旋转和当前缩放，把结果
+定位到视口内；放大页面后也会同时调整横向位置。默认把结果放在距视口顶部约
+40% 的位置，可以通过 `PdfSearchScrollAlignment` 修改：
+
+```kotlin
+state.animateScrollToSearchResult(
+    result = result,
+    alignment =
+        PdfSearchScrollAlignment(
+            verticalFraction = 0.5f,
+            horizontalFraction = 0.5f,
+        ),
+)
+```
+
+使用 `scrollToSearchResult()` 可以立即定位而不播放动画。这两个方法要求
+`PdfView` 已经绑定该 state 并完成至少一次布局。
 
 通过 `searchHighlightStyle` 配置普通结果和当前结果：
 
@@ -271,8 +289,8 @@ PdfView(
 ```
 
 搜索结果属于具体文档，不会写入 `rememberPdfViewState` 的保存状态；绑定其他
-文档时会自动清除。Viewer 当前会滚动到结果所在页面，不会进一步将页内矩形精确
-居中。
+文档时会自动清除。Viewer 会使用搜索结果的页内矩形进行精确定位。位于文档
+开头或结尾附近的结果可能因为可滚动范围限制而无法严格放到指定位置。
 
 ## 加载状态和页面错误
 

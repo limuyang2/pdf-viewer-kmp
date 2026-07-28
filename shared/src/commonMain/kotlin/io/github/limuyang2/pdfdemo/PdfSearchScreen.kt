@@ -139,7 +139,7 @@ internal fun PdfSearchScreen(
                         ),
                 )
                 viewState.selectedSearchResult?.let { result ->
-                    viewState.animateScrollToPage(result.pageIndex)
+                    viewState.animateScrollToSearchResult(result)
                 }
             }
     }
@@ -181,7 +181,7 @@ internal fun PdfSearchScreen(
                     viewState
                         .selectPreviousSearchResult()
                         ?.let { result ->
-                            viewState.animateScrollToPage(result.pageIndex)
+                            viewState.animateScrollToSearchResult(result)
                         }
                 }
             },
@@ -190,7 +190,7 @@ internal fun PdfSearchScreen(
                     viewState
                         .selectNextSearchResult()
                         ?.let { result ->
-                            viewState.animateScrollToPage(result.pageIndex)
+                            viewState.animateScrollToSearchResult(result)
                         }
                 }
             },

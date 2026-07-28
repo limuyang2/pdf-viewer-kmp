@@ -233,13 +233,13 @@ next controls and scroll to the selected result's page:
 ```kotlin
 scope.launch {
     state.selectNextSearchResult()?.let { result ->
-        state.animateScrollToPage(result.pageIndex)
+        state.animateScrollToSearchResult(result)
     }
 }
 
 scope.launch {
     state.selectPreviousSearchResult()?.let { result ->
-        state.animateScrollToPage(result.pageIndex)
+        state.animateScrollToSearchResult(result)
     }
 }
 ```
@@ -247,6 +247,27 @@ scope.launch {
 Both navigation methods wrap by default. Pass `wrapAround = false` to stop at
 either end. Use `selectSearchResult(index)` to select an exact result or
 `clearSearch()` to clear the search.
+
+`animateScrollToSearchResult()` uses the match bounds, page rotation, and
+current zoom to position the result inside the viewport. It also adjusts the
+horizontal position when a zoomed page is wider than the viewport. By default,
+the result is placed approximately 40% from the top. Customize this with
+`PdfSearchScrollAlignment`:
+
+```kotlin
+state.animateScrollToSearchResult(
+    result = result,
+    alignment =
+        PdfSearchScrollAlignment(
+            verticalFraction = 0.5f,
+            horizontalFraction = 0.5f,
+        ),
+)
+```
+
+Use `scrollToSearchResult()` for immediate positioning without animation.
+Both functions require a `PdfView` bound to the state that has completed at
+least one layout pass.
 
 Configure normal and selected highlights with `searchHighlightStyle`:
 
@@ -275,8 +296,9 @@ PdfView(
 
 Search results belong to a specific document and are not written to the
 `rememberPdfViewState` saved state. Binding another document clears them. The
-viewer currently scrolls to the result's page; it does not precisely center
-the match rectangle within that page.
+viewer uses the result rectangle for precise positioning. Results near the
+beginning or end of the document may not reach the requested alignment because
+the scroll range is clamped to the document bounds.
 
 ## Loading and page errors
 
