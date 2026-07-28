@@ -2,6 +2,29 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.2.2 - 2026-07-29
+
+This release makes the published iOS artifacts self-contained.
+
+### PDF Core
+
+- Embed the matching static `libpdfium.a` and `libpdfviewer_core.a` archives in
+  each published cinterop KLIB.
+- Resolve missing `FPDF*` symbols, including `FPDFAction_GetDest` and
+  `FPDFBitmap_CreateEx`, when an external Kotlin Multiplatform project links
+  its final iOS framework.
+- Propagate the required libc++, CoreFoundation, and CoreGraphics linker
+  options to downstream consumers.
+- Remove the runtime dependency on `@rpath/libpdfium.dylib`; consuming
+  applications no longer need a PDFium copy or code-sign phase.
+- Support device arm64 and simulator arm64 with a minimum iOS version of 14.0.
+- Update the PDFium maintenance script to preserve or accept matching static
+  iOS archives through `PDFIUM_IOS_STATIC_ROOT`.
+
+### iOS Demo
+
+- Remove the obsolete PDFium dylib embedding and signing logic.
+
 ## 0.2.1 - 2026-07-29
 
 This release fixes iOS build and runtime integration issues.
@@ -10,16 +33,16 @@ This release fixes iOS build and runtime integration issues.
 
 - Embed `libpdfviewer_core.a` in the cinterop KLIB to resolve missing `pdfv_*`
   symbols when linking final Kotlin/Native frameworks.
-- Embed static PDFium in the published iOS KLIB so external consumers resolve
-  all `FPDF*` symbols without local linker paths or runtime dylib embedding.
 - Ensure device arm64 and simulator arm64 builds generate and include the
   native PDF bridge for the selected architecture.
-- Lower the bundled iOS binary deployment target from iOS 26.0 to iOS 14.0.
 
 ### iOS Demo
 
-- Remove the PDFium dylib copy and code-sign phase because PDFium is now linked
-  statically into the Kotlin framework.
+- Copy the platform-specific `libpdfium.dylib` into the app's `Frameworks`
+  directory and code-sign it for device and simulator builds.
+- Ensure Xcode Kotlin build support skips only the redundant Gradle invocation,
+  not PDFium embedding, preventing
+  `Library not loaded: @rpath/libpdfium.dylib` at launch.
 
 ## 0.2.0 - 2026-07-28
 

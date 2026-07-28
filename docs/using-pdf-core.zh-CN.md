@@ -9,7 +9,7 @@
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.limuyang2:pdf-core:0.2.1")
+            implementation("io.github.limuyang2:pdf-core:0.2.2")
         }
     }
 }
