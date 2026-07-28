@@ -2,6 +2,30 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.2.0 - 2026-07-28
+
+This release adds document search support across PDF Core and PDF Viewer.
+
+### PDF Core
+
+- Add text search support on Android, JVM, iOS, JavaScript, and WasmJS.
+- Support case-sensitive, whole-word, and consecutive-match search options.
+- Return the text range and page-space bounds for each search match.
+
+### PDF Viewer
+
+- Add document search state and lifecycle management to `PdfViewState`.
+- Report incremental search progress, results, selection, completion, and
+  failures.
+- Add previous, next, and direct result selection.
+- Highlight all search results and distinguish the currently selected result.
+- Make match and selected-match fill, stroke, corner radius, and padding
+  configurable through `PdfSearchHighlightStyle`.
+- Add immediate and animated scrolling to the exact position of a search
+  result, including horizontal positioning on zoomed pages.
+- Support configurable search-result alignment within the viewport.
+- Add a search test page to the shared demo.
+
 ## 0.1.0 - 2026-07-27
 
 The first public release of `pdf-core` and `pdf-viewer`.

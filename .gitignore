@@ -31,3 +31,4 @@ xcuserdata/
 
 # kotlin-js-store is intentionally tracked for reproducible JS/Wasm installs.
 /RepoDir
+/androidApp/release
