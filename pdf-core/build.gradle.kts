@@ -163,7 +163,6 @@ kotlin {
 
         commonMain.dependencies {
             api(libs.compose.runtimeAnnotation)
-            implementation(libs.kotlin.stdlib)
             implementation(libs.kotlinx.coroutinesCore)
         }
 
