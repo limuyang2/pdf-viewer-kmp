@@ -147,7 +147,7 @@ val firstCharacters =
 
 ## 搜索文本
 
-目前只有 Android 后端实现了文本搜索：
+Android、JVM、iOS、JS 和 WasmJS 后端均支持文本搜索：
 
 ```kotlin
 import io.github.limuyang2.pdf.core.PdfSearchOptions
@@ -168,8 +168,6 @@ if (PdfViewer.capabilities.search) {
     }
 }
 ```
-
-在其他后端调用 `search()` 会抛出 `PdfUnsupportedFeatureException`。
 
 ## 读取链接
 
@@ -292,7 +290,6 @@ pdf-core/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib
 - 内嵌缩略图；
 - 书签；
 - 文本布局和字符几何信息；
-- Android 以外平台的文本搜索；
 - 表单和编辑；
 - 渐进式加载或渲染；
 - PDF JavaScript 和 XFA。

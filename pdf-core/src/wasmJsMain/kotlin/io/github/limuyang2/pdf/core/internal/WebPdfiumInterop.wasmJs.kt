@@ -34,6 +34,25 @@ private external interface WasmPageInformation : JsAny {
     val top: Double
 }
 
+private external interface WasmPdfSearchBound : JsAny {
+    val left: Double
+    val bottom: Double
+    val right: Double
+    val top: Double
+}
+
+private external interface WasmPdfSearchMatch : JsAny {
+    val startCharacterIndex: Int
+    val characterCount: Int
+    val boundCount: Int
+    fun bound(index: Int): WasmPdfSearchBound?
+}
+
+private external interface WasmPdfSearchResults : JsAny {
+    val count: Int
+    fun match(index: Int): WasmPdfSearchMatch?
+}
+
 private external interface WasmPdfQuad : JsAny {
     val x1: Double
     val y1: Double
@@ -120,6 +139,13 @@ private external interface WasmPdfiumAdapter : JsAny {
         startCharacterIndex: Int,
         characterCount: Int,
     ): String?
+
+    fun search(
+        handle: Int,
+        pageIndex: Int,
+        query: String,
+        flags: Int,
+    ): WasmPdfSearchResults?
 
     fun links(
         handle: Int,
@@ -236,6 +262,35 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                 startCharacterIndex,
                 characterCount,
             )
+
+        override fun search(
+            handle: Int,
+            pageIndex: Int,
+            query: String,
+            flags: Int,
+        ): List<WebPdfSearchMatch>? {
+            val result =
+                adapter().search(handle, pageIndex, query, flags)
+                    ?: return null
+            return List(result.count) { index ->
+                val match = checkNotNull(result.match(index))
+                WebPdfSearchMatch(
+                    startCharacterIndex = match.startCharacterIndex,
+                    characterCount = match.characterCount,
+                    bounds =
+                        List(match.boundCount) { boundIndex ->
+                            val bound =
+                                checkNotNull(match.bound(boundIndex))
+                            WebPageBoundingBox(
+                                left = bound.left,
+                                bottom = bound.bottom,
+                                right = bound.right,
+                                top = bound.top,
+                            )
+                        },
+                )
+            }
+        }
 
         override fun links(
             handle: Int,

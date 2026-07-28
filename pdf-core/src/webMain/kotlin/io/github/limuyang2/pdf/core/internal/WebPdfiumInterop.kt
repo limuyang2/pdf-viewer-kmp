@@ -28,6 +28,12 @@ internal data class WebPageBoundingBox(
     val top: Double,
 )
 
+internal data class WebPdfSearchMatch(
+    val startCharacterIndex: Int,
+    val characterCount: Int,
+    val bounds: List<WebPageBoundingBox>,
+)
+
 internal data class WebPdfQuad(
     val x1: Double,
     val y1: Double,
@@ -104,6 +110,13 @@ internal interface WebPdfiumInterop {
         startCharacterIndex: Int,
         characterCount: Int,
     ): String?
+
+    fun search(
+        handle: Int,
+        pageIndex: Int,
+        query: String,
+        flags: Int,
+    ): List<WebPdfSearchMatch>?
 
     fun links(
         handle: Int,

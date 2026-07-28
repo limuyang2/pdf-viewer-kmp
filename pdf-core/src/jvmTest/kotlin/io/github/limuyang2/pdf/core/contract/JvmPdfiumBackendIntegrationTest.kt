@@ -83,6 +83,17 @@ class JvmPdfiumBackendIntegrationTest {
             }
         }
 
+    @Test
+    fun searchesTextAndReturnsPdfBounds() =
+        runTest {
+            val source =
+                PdfSource.Bytes(createSinglePageTestPdf(SearchContractText))
+            PdfViewer.open(source).use { document ->
+                assertTrue(PdfViewer.capabilities.search)
+                verifySearchContract(document[0])
+            }
+        }
+
     private fun source(fixture: PdfContractFixture): PdfSource {
         val resourceName = "/pdf-contract/${fixture.fileName}.base64"
         val encoded =

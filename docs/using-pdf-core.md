@@ -154,7 +154,7 @@ backends.
 
 ## Search text
 
-Text search is currently implemented on Android only:
+Text search is available on Android, JVM, iOS, JS, and WasmJS:
 
 ```kotlin
 import io.github.limuyang2.pdf.core.PdfSearchOptions
@@ -175,9 +175,6 @@ if (PdfViewer.capabilities.search) {
     }
 }
 ```
-
-Calling `search()` on another backend throws
-`PdfUnsupportedFeatureException`.
 
 ## Read links
 
@@ -305,7 +302,6 @@ The following are not implemented yet:
 - embedded thumbnails;
 - bookmarks;
 - text layout and character geometry;
-- search outside Android;
 - forms and editing;
 - progressive loading or rendering;
 - PDF JavaScript and XFA.

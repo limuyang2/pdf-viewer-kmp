@@ -3,6 +3,7 @@ package io.github.limuyang2.pdf.core.internal
 import com.sun.jna.Memory
 import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
+import com.sun.jna.ptr.DoubleByReference
 import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.NativeLongByReference
@@ -55,7 +56,7 @@ internal object JvmPdfiumBackend : PdfiumBackend {
     override val capabilities: PdfCapabilities =
         PdfCapabilities(
             text = true,
-            search = false,
+            search = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -368,7 +369,48 @@ internal object JvmPdfiumBackend : PdfiumBackend {
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
-    ): List<PdfSearchMatch> = unsupported("text search on JVM")
+    ): List<PdfSearchMatch> =
+        withPage(document, pageIndex) { page ->
+            val pdfium = requireLibrary()
+            val textPage =
+                pdfium.FPDFText_LoadPage(page)
+                    ?: throw PdfPageException(pageIndex)
+            try {
+                val queryBytes = query.toByteArray(Charsets.UTF_16LE)
+                val queryMemory = Memory(queryBytes.size.toLong() + 2)
+                try {
+                    queryMemory.write(0, queryBytes, 0, queryBytes.size)
+                    queryMemory.setShort(queryBytes.size.toLong(), 0)
+                    val search =
+                        pdfium.FPDFText_FindStart(
+                            textPage,
+                            queryMemory,
+                            NativeLong(jvmPdfiumSearchFlags(options).toLong()),
+                            0,
+                        ) ?: throw PdfPageException(pageIndex)
+                    try {
+                        buildList {
+                            while (pdfium.FPDFText_FindNext(search) != 0) {
+                                add(
+                                    jvmPdfSearchMatch(
+                                        pdfium,
+                                        textPage,
+                                        search,
+                                        pageIndex,
+                                    ),
+                                )
+                            }
+                        }
+                    } finally {
+                        pdfium.FPDFText_FindClose(search)
+                    }
+                } finally {
+                    queryMemory.close()
+                }
+            } finally {
+                pdfium.FPDFText_ClosePage(textPage)
+            }
+        }
 
     override fun links(
         document: NativeDocumentHandle,
@@ -458,6 +500,68 @@ internal object JvmPdfiumBackend : PdfiumBackend {
             bounds = jvmLinkBounds(link),
             target = target,
         )
+    }
+
+    private fun jvmPdfSearchMatch(
+        pdfium: JvmPdfiumLibrary,
+        textPage: Pointer,
+        search: Pointer,
+        pageIndex: Int,
+    ): PdfSearchMatch {
+        val startCharacterIndex =
+            pdfium.FPDFText_GetSchResultIndex(search)
+        val characterCount = pdfium.FPDFText_GetSchCount(search)
+        if (startCharacterIndex < 0 || characterCount <= 0) {
+            throw PdfPageException(pageIndex)
+        }
+        val rectCount =
+            pdfium.FPDFText_CountRects(
+                textPage,
+                startCharacterIndex,
+                characterCount,
+            )
+        if (rectCount < 0) throw PdfPageException(pageIndex)
+        val bounds =
+            List(rectCount) { rectIndex ->
+                val left = DoubleByReference()
+                val top = DoubleByReference()
+                val right = DoubleByReference()
+                val bottom = DoubleByReference()
+                if (
+                    pdfium.FPDFText_GetRect(
+                        textPage,
+                        rectIndex,
+                        left,
+                        top,
+                        right,
+                        bottom,
+                    ) == 0
+                ) {
+                    throw PdfPageException(pageIndex)
+                }
+                PdfRect(
+                    left = left.value,
+                    bottom = bottom.value,
+                    right = right.value,
+                    top = top.value,
+                )
+            }
+        return PdfSearchMatch(
+            range =
+                PdfTextRange(
+                    startCharacterIndex = startCharacterIndex,
+                    characterCount = characterCount,
+                ),
+            bounds = bounds,
+        )
+    }
+
+    private fun jvmPdfiumSearchFlags(options: PdfSearchOptions): Int {
+        var flags = 0
+        if (options.matchCase) flags = flags or SEARCH_MATCH_CASE
+        if (options.matchWholeWord) flags = flags or SEARCH_MATCH_WHOLE_WORD
+        if (options.consecutive) flags = flags or SEARCH_CONSECUTIVE
+        return flags
     }
 
     private fun jvmLinkBounds(link: Pointer): List<PdfQuad> {
@@ -671,4 +775,7 @@ internal object JvmPdfiumBackend : PdfiumBackend {
     private const val ACTION_GOTO: Int = 1
     private const val ACTION_REMOTE_GOTO: Int = 2
     private const val ACTION_URI: Int = 3
+    private const val SEARCH_MATCH_CASE: Int = 1 shl 0
+    private const val SEARCH_MATCH_WHOLE_WORD: Int = 1 shl 1
+    private const val SEARCH_CONSECUTIVE: Int = 1 shl 2
 }

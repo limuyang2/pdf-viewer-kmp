@@ -1,18 +1,20 @@
 package io.github.limuyang2.pdf.core.internal
 
+import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfPixelFormat
 import io.github.limuyang2.pdf.core.PdfPixelSize
-import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
+import io.github.limuyang2.pdf.core.contract.SearchContractText
 import io.github.limuyang2.pdf.core.contract.createSinglePageTestPdf
+import io.github.limuyang2.pdf.core.contract.verifySearchContract
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 internal class IosPdfiumBackendCoreTest {
@@ -71,6 +73,21 @@ internal class IosPdfiumBackendCoreTest {
                 )
             try {
                 assertEquals(1, document.pageCount)
+            } finally {
+                document.close()
+            }
+        }
+
+    @Test
+    fun searchesTextAndReturnsPdfBounds() =
+        runTest {
+            val document =
+                PdfViewer.open(
+                    PdfSource.Bytes(createSinglePageTestPdf(SearchContractText)),
+                )
+            try {
+                assertTrue(PdfViewer.capabilities.search)
+                verifySearchContract(document[0])
             } finally {
                 document.close()
             }

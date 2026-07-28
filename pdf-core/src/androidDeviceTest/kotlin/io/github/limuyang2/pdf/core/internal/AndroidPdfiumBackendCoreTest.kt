@@ -4,10 +4,11 @@ import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfPixelFormat
 import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
-import io.github.limuyang2.pdf.core.PdfSearchOptions
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
+import io.github.limuyang2.pdf.core.contract.SearchContractText
 import io.github.limuyang2.pdf.core.contract.createSinglePageTestPdf
+import io.github.limuyang2.pdf.core.contract.verifySearchContract
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -81,43 +82,12 @@ internal class AndroidPdfiumBackendCoreTest {
             val document =
                 PdfViewer.open(
                     PdfSource.Bytes(
-                        createSinglePageTestPdf(
-                            "aaaaaaaaaa Android android Androids",
-                        ),
+                        createSinglePageTestPdf(SearchContractText),
                     ),
                 )
             try {
-                val page = document[0]
-
-                assertEquals(2, page.search("aaaa").size)
-                assertEquals(
-                    7,
-                    page.search(
-                        query = "aaaa",
-                        options = PdfSearchOptions(consecutive = true),
-                    ).size,
-                )
-                assertEquals(
-                    1,
-                    page.search(
-                        query = "android",
-                        options = PdfSearchOptions(matchCase = true),
-                    ).size,
-                )
-                val wholeWordMatches =
-                    page.search(
-                        query = "android",
-                        options = PdfSearchOptions(matchWholeWord = true),
-                    )
-                assertEquals(2, wholeWordMatches.size)
-                wholeWordMatches.forEach { match ->
-                    assertEquals(7, match.range.characterCount)
-                    assertTrue(match.bounds.isNotEmpty())
-                    match.bounds.forEach { bounds ->
-                        assertTrue(bounds.left <= bounds.right)
-                        assertTrue(bounds.bottom <= bounds.top)
-                    }
-                }
+                assertTrue(PdfViewer.capabilities.search)
+                verifySearchContract(document[0])
             } finally {
                 document.close()
             }

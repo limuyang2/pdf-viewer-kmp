@@ -6,6 +6,7 @@ import com.sun.jna.Native
 import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
+import com.sun.jna.ptr.DoubleByReference
 import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.NativeLongByReference
@@ -151,6 +152,36 @@ internal interface JvmPdfiumLibrary : Library {
         count: Int,
         result: Pointer,
     ): Int
+
+    fun FPDFText_CountRects(
+        textPage: Pointer,
+        startIndex: Int,
+        count: Int,
+    ): Int
+
+    fun FPDFText_GetRect(
+        textPage: Pointer,
+        rectIndex: Int,
+        left: DoubleByReference,
+        top: DoubleByReference,
+        right: DoubleByReference,
+        bottom: DoubleByReference,
+    ): Int
+
+    fun FPDFText_FindStart(
+        textPage: Pointer,
+        query: Pointer,
+        flags: NativeLong,
+        startIndex: Int,
+    ): Pointer?
+
+    fun FPDFText_FindNext(search: Pointer): Int
+
+    fun FPDFText_GetSchResultIndex(search: Pointer): Int
+
+    fun FPDFText_GetSchCount(search: Pointer): Int
+
+    fun FPDFText_FindClose(search: Pointer)
 
     fun FPDFLink_Enumerate(
         page: Pointer,

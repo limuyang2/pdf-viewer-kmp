@@ -37,8 +37,12 @@ import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_OK
 import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_RENDER_ANNOTATIONS
 import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_RENDER_GRAYSCALE
 import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_RENDER_LCD_TEXT
+import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_SEARCH_CONSECUTIVE
+import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_SEARCH_MATCH_CASE
+import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_SEARCH_MATCH_WHOLE_WORD
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_close_document
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_destroy
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_destroy_search_result
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_document_info_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_document_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_extract_text_utf16
@@ -48,13 +52,20 @@ import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_metadata_utf16
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_info
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_label_utf16
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_links
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_search_match
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_search_rect
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_search_result_counts
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_initialize
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_link_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_open_memory
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_page_info_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_quad_t
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_rect_t
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_render_page
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_render_request_t
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_search_match_t
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_search_result_t
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_search_text_utf16
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.CPointerVar
@@ -80,7 +91,7 @@ internal object IosPdfiumBackend : PdfiumBackend {
     override val capabilities: PdfCapabilities =
         PdfCapabilities(
             text = true,
-            search = false,
+            search = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -355,7 +366,115 @@ internal object IosPdfiumBackend : PdfiumBackend {
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
-    ): List<PdfSearchMatch> = unsupported("text search on iOS")
+    ): List<PdfSearchMatch> =
+        memScoped {
+            val queryUtf16 =
+                UShortArray(query.length + 1) { index ->
+                    if (index < query.length) {
+                        query[index].code.toUShort()
+                    } else {
+                        0u
+                    }
+                }
+            var flags = 0u
+            if (options.matchCase) flags = flags or PDFV_SEARCH_MATCH_CASE
+            if (options.matchWholeWord) {
+                flags = flags or PDFV_SEARCH_MATCH_WHOLE_WORD
+            }
+            if (options.consecutive) {
+                flags = flags or PDFV_SEARCH_CONSECUTIVE
+            }
+            val resultReference =
+                alloc<CPointerVar<pdfv_search_result_t>>()
+            resultReference.value = null
+            val status =
+                queryUtf16.usePinned { pinned ->
+                    pdfv_search_text_utf16(
+                        document.pointer(),
+                        pageIndex,
+                        pinned.addressOf(0),
+                        flags,
+                        resultReference.ptr,
+                    )
+                }
+            requireBridgeStatus(status, pageIndex)
+            val result =
+                resultReference.value
+                    ?: throw PdfPageException(pageIndex)
+            try {
+                val matchCountReference = alloc<ULongVar>()
+                val rectCountReference = alloc<ULongVar>()
+                requireBridgeStatus(
+                    pdfv_get_search_result_counts(
+                        result,
+                        matchCountReference.ptr,
+                        rectCountReference.ptr,
+                    ),
+                    pageIndex,
+                )
+                val matchCount =
+                    matchCountReference.value.checkedInt("search match")
+                val rectCount =
+                    rectCountReference.value.checkedInt("search rectangle")
+                val nativeMatch = alloc<pdfv_search_match_t>()
+                val nativeRect = alloc<pdfv_rect_t>()
+                List(matchCount) { matchIndex ->
+                    requireBridgeStatus(
+                        pdfv_get_search_match(
+                            result,
+                            matchIndex.toULong(),
+                            nativeMatch.ptr,
+                        ),
+                        pageIndex,
+                    )
+                    val firstRect =
+                        nativeMatch.first_rect.checkedInt(
+                            "search rectangle offset",
+                        )
+                    val matchRectCount =
+                        nativeMatch.rect_count.checkedInt(
+                            "search rectangle count",
+                        )
+                    require(
+                        firstRect <= rectCount &&
+                            matchRectCount <= rectCount - firstRect,
+                    ) {
+                        "The shared PDFium bridge returned invalid search bounds"
+                    }
+                    PdfSearchMatch(
+                        range =
+                            PdfTextRange(
+                                startCharacterIndex =
+                                    nativeMatch.start_character_index,
+                                characterCount =
+                                    nativeMatch.character_count,
+                            ),
+                        bounds =
+                            List(matchRectCount) { rectIndex ->
+                                requireBridgeStatus(
+                                    pdfv_get_search_rect(
+                                        result,
+                                        (firstRect + rectIndex).toULong(),
+                                        nativeRect.ptr,
+                                    ),
+                                    pageIndex,
+                                )
+                                PdfRect(
+                                    left = nativeRect.left,
+                                    bottom = nativeRect.bottom,
+                                    right = nativeRect.right,
+                                    top = nativeRect.top,
+                                )
+                            },
+                    )
+                }
+            } finally {
+                requireBridgeStatus(
+                    pdfv_destroy_search_result(result),
+                    pageIndex,
+                )
+            }
+        }
 
     override fun links(
         document: NativeDocumentHandle,

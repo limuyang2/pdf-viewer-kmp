@@ -153,14 +153,14 @@ UI、链接处理等内容，请参阅
 - 页面尺寸、固有旋转方向和边界框；
 - 完整页面 BGRA8888 渲染；
 - 基础文本提取；
+- 支持大小写、整词和连续匹配选项的文本搜索；
 - 内部跳转目标、URI 动作和链接标注区域。
 
-Android 还支持文本搜索。调用可选 API 前，可以通过
-`PdfViewer.capabilities` 检查当前平台能力。
+调用可选 API 前，可以通过 `PdfViewer.capabilities` 检查当前平台能力。
 
-当前尚未实现：书签、内嵌缩略图、公开后端的文本布局几何信息、Android 以外
-平台的搜索、随机访问输入源、局部裁剪渲染、表单、编辑、渐进式加载或渲染、
-JavaScript 和 XFA。不支持的操作会抛出 `PdfUnsupportedFeatureException`。
+当前尚未实现：书签、内嵌缩略图、公开后端的文本布局几何信息、随机访问输入源、
+局部裁剪渲染、表单、编辑、渐进式加载或渲染、JavaScript 和 XFA。不支持的操作
+会抛出 `PdfUnsupportedFeatureException`。
 
 ## 许可证
 

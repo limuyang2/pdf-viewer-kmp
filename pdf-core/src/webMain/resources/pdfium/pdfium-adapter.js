@@ -140,6 +140,20 @@
     return pointer;
   }
 
+  function allocateUtf16(value) {
+    var module = requireModule();
+    var pointer = module._malloc((value.length + 1) * 2);
+    if (!pointer) {
+      throw new Error("Could not allocate PDFium UTF-16 string");
+    }
+    var offset = pointer >> 1;
+    for (var index = 0; index < value.length; index += 1) {
+      module.HEAPU16[offset + index] = value.charCodeAt(index);
+    }
+    module.HEAPU16[offset + value.length] = 0;
+    return pointer;
+  }
+
   function open(bytes, password) {
     var module = requireModule();
     if (!(bytes instanceof Uint8Array) || bytes.length === 0) {
@@ -381,6 +395,84 @@
     });
   }
 
+  function search(handle, pageIndex, query, flags) {
+    return withPage(handle, pageIndex, function (module, page) {
+      var textPage = module._FPDFText_LoadPage(page);
+      if (!textPage) return null;
+      var queryPointer = 0;
+      var searchHandle = 0;
+      var rectPointer = 0;
+      try {
+        queryPointer = allocateUtf16(query);
+        searchHandle = module._FPDFText_FindStart(
+          textPage,
+          queryPointer,
+          flags,
+          0
+        );
+        if (!searchHandle) return null;
+        rectPointer = module._malloc(32);
+        if (!rectPointer) {
+          throw new Error("Could not allocate PDFium search bounds");
+        }
+        var matches = [];
+        while (module._FPDFText_FindNext(searchHandle)) {
+          var startCharacterIndex =
+            module._FPDFText_GetSchResultIndex(searchHandle);
+          var characterCount = module._FPDFText_GetSchCount(searchHandle);
+          if (startCharacterIndex < 0 || characterCount <= 0) {
+            throw new Error("PDFium returned an invalid search result");
+          }
+          var rectCount = module._FPDFText_CountRects(
+            textPage,
+            startCharacterIndex,
+            characterCount
+          );
+          if (rectCount < 0) {
+            throw new Error("PDFium returned invalid search bounds");
+          }
+          let bounds = [];
+          for (var rectIndex = 0; rectIndex < rectCount; rectIndex += 1) {
+            if (
+              !module._FPDFText_GetRect(
+                textPage,
+                rectIndex,
+                rectPointer,
+                rectPointer + 8,
+                rectPointer + 16,
+                rectPointer + 24
+              )
+            ) {
+              throw new Error("PDFium could not read search bounds");
+            }
+            var doubleOffset = rectPointer >> 3;
+            bounds.push(Object.freeze({
+              left: module.HEAPF64[doubleOffset],
+              top: module.HEAPF64[doubleOffset + 1],
+              right: module.HEAPF64[doubleOffset + 2],
+              bottom: module.HEAPF64[doubleOffset + 3]
+            }));
+          }
+          matches.push(Object.freeze({
+            startCharacterIndex: startCharacterIndex,
+            characterCount: characterCount,
+            boundCount: bounds.length,
+            bound: function (index) { return bounds[index]; }
+          }));
+        }
+        return Object.freeze({
+          count: matches.length,
+          match: function (index) { return matches[index]; }
+        });
+      } finally {
+        if (rectPointer) module._free(rectPointer);
+        if (searchHandle) module._FPDFText_FindClose(searchHandle);
+        if (queryPointer) module._free(queryPointer);
+        module._FPDFText_ClosePage(textPage);
+      }
+    });
+  }
+
   function readUtf8(read) {
     var module = requireModule();
     var requiredBytes = read(0, 0) >>> 0;
@@ -592,6 +684,7 @@
     pageInformation: pageInformation,
     render: render,
     extractText: extractText,
+    search: search,
     links: links,
     debugAllocationCounts: debugAllocationCounts
   });

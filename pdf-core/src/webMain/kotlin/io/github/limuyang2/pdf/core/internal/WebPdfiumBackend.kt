@@ -35,11 +35,14 @@ internal object WebPdfiumBackend : PdfiumBackend {
     private const val RENDER_ANNOTATIONS = 0x01
     private const val RENDER_LCD_TEXT = 0x02
     private const val RENDER_GRAYSCALE = 0x08
+    private const val SEARCH_MATCH_CASE = 1 shl 0
+    private const val SEARCH_MATCH_WHOLE_WORD = 1 shl 1
+    private const val SEARCH_CONSECUTIVE = 1 shl 2
 
     override val capabilities: PdfCapabilities =
         PdfCapabilities(
             text = true,
-            search = false,
+            search = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -225,7 +228,32 @@ internal object WebPdfiumBackend : PdfiumBackend {
         pageIndex: Int,
         query: String,
         options: PdfSearchOptions,
-    ): List<PdfSearchMatch> = unsupported("text search in browsers")
+    ): List<PdfSearchMatch> =
+        platformWebPdfiumInterop
+            .search(
+                handle = document.webHandle(),
+                pageIndex = pageIndex,
+                query = query,
+                flags = webPdfiumSearchFlags(options),
+            )?.map { match ->
+                PdfSearchMatch(
+                    range =
+                        PdfTextRange(
+                            startCharacterIndex =
+                                match.startCharacterIndex,
+                            characterCount = match.characterCount,
+                        ),
+                    bounds =
+                        match.bounds.map { bounds ->
+                            PdfRect(
+                                left = bounds.left,
+                                bottom = bounds.bottom,
+                                right = bounds.right,
+                                top = bounds.top,
+                            )
+                        },
+                )
+            } ?: throw PdfPageException(pageIndex)
 
     override fun links(
         document: NativeDocumentHandle,
@@ -288,6 +316,14 @@ internal object WebPdfiumBackend : PdfiumBackend {
             "Invalid browser PDFium document handle: $value"
         }
         return value.toInt()
+    }
+
+    private fun webPdfiumSearchFlags(options: PdfSearchOptions): Int {
+        var flags = 0
+        if (options.matchCase) flags = flags or SEARCH_MATCH_CASE
+        if (options.matchWholeWord) flags = flags or SEARCH_MATCH_WHOLE_WORD
+        if (options.consecutive) flags = flags or SEARCH_CONSECUTIVE
+        return flags
     }
 
     private fun throwOpenFailure(

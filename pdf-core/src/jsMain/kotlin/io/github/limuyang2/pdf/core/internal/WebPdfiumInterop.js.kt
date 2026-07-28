@@ -120,6 +120,36 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                 characterCount,
             ) as String?
 
+        override fun search(
+            handle: Int,
+            pageIndex: Int,
+            query: String,
+            flags: Int,
+        ): List<WebPdfSearchMatch>? {
+            val result =
+                adapter().search(handle, pageIndex, query, flags)
+                    ?: return null
+            return List(result.count as Int) { index ->
+                val match = result.match(index)
+                WebPdfSearchMatch(
+                    startCharacterIndex =
+                        match.startCharacterIndex as Int,
+                    characterCount = match.characterCount as Int,
+                    bounds =
+                        List(match.boundCount as Int) { boundIndex ->
+                            val bound = match.bound(boundIndex)
+                            WebPageBoundingBox(
+                                left = (bound.left as Number).toDouble(),
+                                bottom =
+                                    (bound.bottom as Number).toDouble(),
+                                right = (bound.right as Number).toDouble(),
+                                top = (bound.top as Number).toDouble(),
+                            )
+                        },
+                )
+            }
+        }
+
         override fun links(
             handle: Int,
             pageIndex: Int,

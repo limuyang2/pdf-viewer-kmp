@@ -155,14 +155,14 @@ All current backends support:
 - page size, intrinsic rotation, and bounding boxes;
 - full-page BGRA8888 rendering;
 - basic text extraction;
+- text search with case, whole-word, and consecutive-match options;
 - internal destinations, URI actions, and link annotation bounds.
 
-Android additionally supports text search. Check `PdfViewer.capabilities`
-before calling optional APIs.
+Check `PdfViewer.capabilities` before calling optional APIs.
 
 Not yet implemented: bookmarks, embedded thumbnails, text layout geometry on
-the public backends, search outside Android, random-access sources, cropped
-rendering, forms, editing, progressive loading/rendering, JavaScript, and XFA.
+the public backends, random-access sources, cropped rendering, forms, editing,
+progressive loading/rendering, JavaScript, and XFA.
 Unavailable operations throw `PdfUnsupportedFeatureException`.
 
 ## License
