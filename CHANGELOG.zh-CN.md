@@ -2,6 +2,24 @@
 
 [English](CHANGELOG.md)
 
+## 0.2.1 - 2026-07-29
+
+本版本修复 iOS 构建和运行时集成问题。
+
+### PDF Core
+
+- 将 `libpdfviewer_core.a` 嵌入 cinterop KLIB，修复最终 Kotlin/Native
+  framework 链接时缺少 `pdfv_*` 符号的问题。
+- 确保真机 arm64 和模拟器 arm64 构建都会先生成并包含对应架构的原生
+  PDF bridge。
+
+### iOS Demo
+
+- 根据真机或模拟器平台，将对应的 `libpdfium.dylib` 自动复制到 App 的
+  `Frameworks` 目录并完成代码签名。
+- 修复启用 Xcode Kotlin 构建支持时跳过 PDFium 嵌入步骤，导致启动时出现
+  `Library not loaded: @rpath/libpdfium.dylib` 的问题。
+
 ## 0.2.0 - 2026-07-28
 
 本版本为 PDF Core 和 PDF Viewer 新增文档搜索支持。
