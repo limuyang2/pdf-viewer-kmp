@@ -25,7 +25,7 @@ The project is split into two public libraries:
 | Library | Purpose |
 | --- | --- |
 | `pdf-core` | Opens PDF documents and exposes metadata, page rendering, text, search, and links without requiring Compose UI. |
-| `pdf-viewer` | Provides the `PdfView` Compose Multiplatform component. It depends on `pdf-core` transitively. |
+| `pdf-viewer` | Provides the `PdfView` Compose Multiplatform component with zoom, links, search state, and configurable result highlighting. It depends on `pdf-core` transitively. |
 
 ## Platform support
 
@@ -129,7 +129,7 @@ The caller owns `PdfDocument` and must close it when the screen is disposed.
 
 See [Using PDF Viewer](docs/using-pdf-viewer.md) for opening a document in
 Compose, state control, zoom configuration, render limits, custom loading and
-error UI, and link handling.
+error UI, link handling, and search highlighting.
 
 ## Platform setup at a glance
 

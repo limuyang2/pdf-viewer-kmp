@@ -1,6 +1,7 @@
 package io.github.limuyang2.pdf.viewer
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,9 +31,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -49,6 +54,7 @@ import io.github.limuyang2.pdf.core.PdfPageInfo
 import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfPoint
 import io.github.limuyang2.pdf.core.PdfQuad
+import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
 import kotlinx.coroutines.CancellationException
@@ -104,6 +110,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param gestureZoomEnabled Whether multi-touch zoom gestures are enabled.
  * Programmatic zoom through [state] remains available when disabled. Pan
  * deltas are ignored during a multi-touch zoom to avoid competing with scroll.
+ * @param searchHighlightStyle Configures normal and selected search-result
+ * highlights.
  */
 @Composable
 fun PdfView(
@@ -123,6 +131,7 @@ fun PdfView(
     onLinkError: (pageIndex: Int, link: PdfLink, error: Throwable) -> Unit = { _, _, _ -> },
     maxZoom: Float = PdfViewState.DEFAULT_MAX_ZOOM,
     gestureZoomEnabled: Boolean = true,
+    searchHighlightStyle: PdfSearchHighlightStyle = PdfSearchHighlightStyle.Default,
 ) {
     require(!document.isClosed) {
         "PdfView requires an open PdfDocument"
@@ -295,6 +304,8 @@ fun PdfView(
                     count = document.pageCount,
                     key = { pageIndex -> pageIndex },
                 ) { pageIndex ->
+                    val pageSearchResults =
+                        state.searchResultsFor(document, pageIndex)
                     PdfPage(
                         document = document,
                         pageIndex = pageIndex,
@@ -310,6 +321,11 @@ fun PdfView(
                         onLinkActivated = { link ->
                             activateLink(pageIndex, link)
                         },
+                        searchResults = pageSearchResults,
+                        selectedSearchResult =
+                            state.selectedSearchResult,
+                        searchHighlightStyle =
+                            searchHighlightStyle,
                     )
                 }
             }
@@ -397,6 +413,9 @@ private fun PdfPage(
     maxRenderDimension: Int,
     onError: (Int, Throwable) -> Unit,
     onLinkActivated: (PdfLink) -> Unit,
+    searchResults: List<PdfViewSearchResult>,
+    selectedSearchResult: PdfViewSearchResult?,
+    searchHighlightStyle: PdfSearchHighlightStyle,
 ) {
     val informationState by produceState<PdfPageInformationState>(
         initialValue = PdfPageInformationState.Loading,
@@ -552,13 +571,22 @@ private fun PdfPage(
         when (val current = renderState) {
             PdfPageRenderState.Loading ->
                 pageLoadingContent(pageIndex)
-            is PdfPageRenderState.Ready ->
+            is PdfPageRenderState.Ready -> {
                 Image(
                     bitmap = current.image,
                     contentDescription = "PDF page ${pageIndex + 1}",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillBounds,
                 )
+                if (searchResults.isNotEmpty()) {
+                    PdfSearchHighlights(
+                        results = searchResults,
+                        selectedResult = selectedSearchResult,
+                        pageInformation = pageInformation,
+                        style = searchHighlightStyle,
+                    )
+                }
+            }
             is PdfPageRenderState.Failed ->
                 if (pageErrorContent != null) {
                     pageErrorContent(pageIndex, current.error)
@@ -568,6 +596,65 @@ private fun PdfPage(
                             "Page ${pageIndex + 1} could not be rendered",
                     )
                 }
+        }
+    }
+}
+
+@Composable
+private fun PdfSearchHighlights(
+    results: List<PdfViewSearchResult>,
+    selectedResult: PdfViewSearchResult?,
+    pageInformation: PdfPageInfo,
+    style: PdfSearchHighlightStyle,
+) {
+    Canvas(Modifier.fillMaxSize()) {
+        results.forEach { result ->
+            val decoration =
+                if (result == selectedResult) {
+                    style.selectedMatch
+                } else {
+                    style.match
+                }
+            val padding = decoration.padding.toPx()
+            val strokeWidth = decoration.strokeWidth.toPx()
+            val cornerRadius = decoration.cornerRadius.toPx()
+            result.match.bounds.forEach boundsLoop@{ bounds ->
+                val mapped =
+                    pdfRectToDisplayedRect(
+                        bounds = bounds,
+                        displayedWidth = size.width,
+                        displayedHeight = size.height,
+                        pageInformation = pageInformation,
+                    )
+                val left = mapped.left - padding
+                val top = mapped.top - padding
+                val width = mapped.width + padding * 2f
+                val height = mapped.height + padding * 2f
+                if (width <= 0f || height <= 0f) {
+                    return@boundsLoop
+                }
+                val topLeft = Offset(left, top)
+                val highlightSize = Size(width, height)
+                val radius = CornerRadius(cornerRadius, cornerRadius)
+                drawRoundRect(
+                    color = decoration.fillColor,
+                    topLeft = topLeft,
+                    size = highlightSize,
+                    cornerRadius = radius,
+                )
+                if (
+                    strokeWidth > 0f &&
+                    decoration.strokeColor.alpha > 0f
+                ) {
+                    drawRoundRect(
+                        color = decoration.strokeColor,
+                        topLeft = topLeft,
+                        size = highlightSize,
+                        cornerRadius = radius,
+                        style = Stroke(width = strokeWidth),
+                    )
+                }
+            }
         }
     }
 }
@@ -596,6 +683,106 @@ internal fun findPdfLinkAt(
     return links.lastOrNull { link ->
         link.bounds.any { it.contains(point) }
     }
+}
+
+internal fun pdfRectToDisplayedRect(
+    bounds: PdfRect,
+    displayedWidth: Float,
+    displayedHeight: Float,
+    pageInformation: PdfPageInfo,
+): Rect {
+    require(displayedWidth > 0f) {
+        "displayedWidth must be positive"
+    }
+    require(displayedHeight > 0f) {
+        "displayedHeight must be positive"
+    }
+    require(
+        pageInformation.size.width > 0.0 &&
+            pageInformation.size.height > 0.0,
+    ) {
+        "page size must have positive width and height"
+    }
+
+    val points =
+        listOf(
+            PdfPoint(bounds.left, bounds.bottom),
+            PdfPoint(bounds.left, bounds.top),
+            PdfPoint(bounds.right, bounds.bottom),
+            PdfPoint(bounds.right, bounds.top),
+        ).map { point ->
+            pdfPointToDisplayed(
+                point = point,
+                displayedWidth = displayedWidth,
+                displayedHeight = displayedHeight,
+                pageInformation = pageInformation,
+            )
+        }
+    return Rect(
+        left = points.minOf(Offset::x),
+        top = points.minOf(Offset::y),
+        right = points.maxOf(Offset::x),
+        bottom = points.maxOf(Offset::y),
+    )
+}
+
+private fun pdfPointToDisplayed(
+    point: PdfPoint,
+    displayedWidth: Float,
+    displayedHeight: Float,
+    pageInformation: PdfPageInfo,
+): Offset {
+    val displayedPageWidth = pageInformation.size.width
+    val displayedPageHeight = pageInformation.size.height
+    val nativeWidth =
+        when (pageInformation.rotation) {
+            PdfRotation.Degrees0,
+            PdfRotation.Degrees180,
+            -> displayedPageWidth
+            PdfRotation.Degrees90,
+            PdfRotation.Degrees270,
+            -> displayedPageHeight
+        }
+    val nativeHeight =
+        when (pageInformation.rotation) {
+            PdfRotation.Degrees0,
+            PdfRotation.Degrees180,
+            -> displayedPageHeight
+            PdfRotation.Degrees90,
+            PdfRotation.Degrees270,
+            -> displayedPageWidth
+        }
+    val displayedPoint =
+        when (pageInformation.rotation) {
+            PdfRotation.Degrees0 ->
+                PdfPoint(
+                    x = point.x,
+                    y = nativeHeight - point.y,
+                )
+            PdfRotation.Degrees90 ->
+                PdfPoint(
+                    x = point.y,
+                    y = point.x,
+                )
+            PdfRotation.Degrees180 ->
+                PdfPoint(
+                    x = nativeWidth - point.x,
+                    y = point.y,
+                )
+            PdfRotation.Degrees270 ->
+                PdfPoint(
+                    x = nativeHeight - point.y,
+                    y = nativeWidth - point.x,
+                )
+        }
+    return Offset(
+        x =
+            (displayedPoint.x / displayedPageWidth * displayedWidth)
+                .toFloat(),
+        y =
+            (displayedPoint.y / displayedPageHeight * displayedHeight)
+                .toFloat(),
+    )
 }
 
 internal fun displayedPointToPdf(

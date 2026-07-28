@@ -128,6 +128,7 @@ Important parameters:
 | `maxZoom` | `4f` | Maximum visual zoom multiplier. Must be finite and at least `1f`. |
 | `gestureZoomEnabled` | `true` | Enables or disables multi-touch zoom. Programmatic zoom remains available. |
 | `maxRenderDimension` | `4096` | Maximum width or height, in pixels, of each rendered bitmap. |
+| `searchHighlightStyle` | yellow matches, orange selection | Fill, stroke, corner radius, and padding for search results and the selected result. |
 
 `maxZoom` and `maxRenderDimension` solve different problems:
 
@@ -185,6 +186,97 @@ Button(
     Text("Page 11")
 }
 ```
+
+## Search and highlighting
+
+Start a search through `PdfViewState`. Results are added page by page and are
+automatically highlighted by a `PdfView` bound to the same state:
+
+```kotlin
+val state = rememberPdfViewState()
+
+LaunchedEffect(document, query, matchCase, matchWholeWord) {
+    state.search(
+        document = document,
+        query = query,
+        options =
+            PdfSearchOptions(
+                matchCase = matchCase,
+                matchWholeWord = matchWholeWord,
+            ),
+    )
+}
+
+PdfView(
+    document = document,
+    state = state,
+)
+```
+
+An empty query clears the search. Progress and results are available from:
+
+```kotlin
+val status = state.searchStatus
+val results = state.searchResults
+val selectedIndex = state.selectedSearchResultIndex
+val selectedResult = state.selectedSearchResult
+```
+
+`searchStatus` is `Idle`, `Searching`, `Completed`, or `Failed`. `Searching`
+contains the completed and total page counts; `Failed` retains the original
+exception. Coroutine cancellation is rethrown and clears that unfinished
+search.
+
+The first result becomes selected. An application can provide previous and
+next controls and scroll to the selected result's page:
+
+```kotlin
+scope.launch {
+    state.selectNextSearchResult()?.let { result ->
+        state.animateScrollToPage(result.pageIndex)
+    }
+}
+
+scope.launch {
+    state.selectPreviousSearchResult()?.let { result ->
+        state.animateScrollToPage(result.pageIndex)
+    }
+}
+```
+
+Both navigation methods wrap by default. Pass `wrapAround = false` to stop at
+either end. Use `selectSearchResult(index)` to select an exact result or
+`clearSearch()` to clear the search.
+
+Configure normal and selected highlights with `searchHighlightStyle`:
+
+```kotlin
+PdfView(
+    document = document,
+    state = state,
+    searchHighlightStyle =
+        PdfSearchHighlightStyle(
+            match =
+                PdfSearchHighlightDecoration(
+                    fillColor = Color.Yellow.copy(alpha = 0.3f),
+                    cornerRadius = 2.dp,
+                    padding = 1.dp,
+                ),
+            selectedMatch =
+                PdfSearchHighlightDecoration(
+                    fillColor = Color(0x6681D4FA),
+                    strokeColor = Color(0xFF0277BD),
+                    strokeWidth = 2.dp,
+                    cornerRadius = 2.dp,
+                ),
+        ),
+)
+```
+
+Search results belong to a specific document and are not written to the
+`rememberPdfViewState` saved state. Binding another document clears them. The
+viewer currently scrolls to the result's page; it does not precisely center
+the match rectangle within that page.
 
 ## Loading and page errors
 
@@ -254,7 +346,7 @@ when another document is bound or when `clearRenderCache()` is called.
 The current viewer does not provide:
 
 - selectable text;
-- search UI or result highlighting;
+- built-in search input or search-navigation controls;
 - bookmarks or thumbnail navigation;
 - form interaction;
 - tiled rendering for extreme zoom levels.

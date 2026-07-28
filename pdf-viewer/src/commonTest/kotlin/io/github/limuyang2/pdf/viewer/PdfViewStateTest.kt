@@ -2,9 +2,13 @@ package io.github.limuyang2.pdf.viewer
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyListState
+import io.github.limuyang2.pdf.core.PdfSearchMatch
+import io.github.limuyang2.pdf.core.PdfTextRange
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 class PdfViewStateTest {
     @Test
@@ -56,10 +60,87 @@ class PdfViewStateTest {
         }
     }
 
+    @Test
+    fun searchResultSelectionSupportsNavigationAndWrapping() {
+        val state = createState()
+        val results =
+            listOf(
+                searchResult(pageIndex = 0, startCharacterIndex = 2),
+                searchResult(pageIndex = 1, startCharacterIndex = 4),
+                searchResult(pageIndex = 1, startCharacterIndex = 8),
+            )
+
+        state.updateSearchResults(results)
+
+        assertEquals(0, state.selectedSearchResultIndex)
+        assertSame(results[0], state.selectedSearchResult)
+        assertSame(results[1], state.selectNextSearchResult())
+        assertSame(results[0], state.selectPreviousSearchResult())
+        assertSame(results[2], state.selectPreviousSearchResult())
+        assertSame(results[0], state.selectNextSearchResult())
+    }
+
+    @Test
+    fun searchResultNavigationCanStopAtEitherEnd() {
+        val state = createState()
+        val results =
+            listOf(
+                searchResult(pageIndex = 0, startCharacterIndex = 2),
+                searchResult(pageIndex = 1, startCharacterIndex = 4),
+            )
+
+        state.updateSearchResults(results)
+
+        assertSame(results[0], state.selectPreviousSearchResult(false))
+        assertSame(results[1], state.selectSearchResult(1))
+        assertSame(results[1], state.selectNextSearchResult(false))
+    }
+
+    @Test
+    fun clearingResultsClearsSelection() {
+        val state = createState()
+        state.updateSearchResults(
+            listOf(searchResult(pageIndex = 0, startCharacterIndex = 2)),
+        )
+
+        state.updateSearchResults(emptyList())
+
+        assertEquals(-1, state.selectedSearchResultIndex)
+        assertNull(state.selectedSearchResult)
+        assertNull(state.selectNextSearchResult())
+        assertNull(state.selectPreviousSearchResult())
+    }
+
+    @Test
+    fun selectingSearchResultRequiresValidIndex() {
+        val state = createState()
+
+        assertFailsWith<IllegalArgumentException> {
+            state.selectSearchResult(0)
+        }
+    }
+
     private fun createState(): PdfViewState =
         PdfViewState(
             listState = LazyListState(),
             horizontalScrollState = ScrollState(0),
             initialZoom = 1f,
+        )
+
+    private fun searchResult(
+        pageIndex: Int,
+        startCharacterIndex: Int,
+    ): PdfViewSearchResult =
+        PdfViewSearchResult(
+            pageIndex = pageIndex,
+            match =
+                PdfSearchMatch(
+                    range =
+                        PdfTextRange(
+                            startCharacterIndex = startCharacterIndex,
+                            characterCount = 2,
+                        ),
+                    bounds = emptyList(),
+                ),
         )
 }

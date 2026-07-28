@@ -4,10 +4,24 @@
     <string name="sample_dummy_description">Basic three-page PDF</string>
     <string name="sample_rich_title">Text, images &amp; links · 2 pages</string>
     <string name="sample_rich_description">PDF containing text, images, and links</string>
+    <string name="search_demo_title">Search &amp; highlight test</string>
+    <string name="search_demo_description">Test query options, result navigation, and configurable highlights</string>
     <string name="sample_broken_title">Broken PDF · loading error</string>
     <string name="sample_broken_description">Intentionally corrupted PDF for testing the loading error screen</string>
     <string name="page_load_failed">Page %1$d failed to load</string>
     <string name="back">Back</string>
     <string name="pdf_load_failed">Failed to load PDF</string>
     <string name="unknown_error">Unknown error</string>
+    <string name="search_query_label">Search text</string>
+    <string name="search_action">Search</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_previous">Previous</string>
+    <string name="search_next">Next</string>
+    <string name="match_case">Match case</string>
+    <string name="match_whole_word">Whole word</string>
+    <string name="search_idle">Enter a query and start searching</string>
+    <string name="search_progress">Searching pages %1$d / %2$d</string>
+    <string name="search_completed">%1$d matches</string>
+    <string name="search_failed">Search failed: %1$s</string>
+    <string name="search_result_position">%1$d / %2$d</string>
 </resources>

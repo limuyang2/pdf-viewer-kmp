@@ -127,6 +127,7 @@ PdfView(
 | `maxZoom` | `4f` | 页面最大显示缩放倍数，必须是有限且不小于 `1f` 的数值。 |
 | `gestureZoomEnabled` | `true` | 是否启用多指缩放；关闭后仍可以通过状态进行程序化缩放。 |
 | `maxRenderDimension` | `4096` | 每个渲染位图的最大宽度或高度，单位为像素。 |
+| `searchHighlightStyle` | 黄色匹配项、橙色当前项 | 搜索结果及当前选中结果的填充、描边、圆角和内边距。 |
 
 `maxZoom` 和 `maxRenderDimension` 解决的是两个不同问题：
 
@@ -183,6 +184,95 @@ Button(
     Text("第 11 页")
 }
 ```
+
+## 搜索与高亮
+
+通过 `PdfViewState` 启动搜索。结果会按页逐步写入状态，并由绑定同一状态的
+`PdfView` 自动高亮：
+
+```kotlin
+val state = rememberPdfViewState()
+
+LaunchedEffect(document, query, matchCase, matchWholeWord) {
+    state.search(
+        document = document,
+        query = query,
+        options =
+            PdfSearchOptions(
+                matchCase = matchCase,
+                matchWholeWord = matchWholeWord,
+            ),
+    )
+}
+
+PdfView(
+    document = document,
+    state = state,
+)
+```
+
+空字符串会清除搜索。搜索进度和结果可从以下属性读取：
+
+```kotlin
+val status = state.searchStatus
+val results = state.searchResults
+val selectedIndex = state.selectedSearchResultIndex
+val selectedResult = state.selectedSearchResult
+```
+
+`searchStatus` 可能是 `Idle`、`Searching`、`Completed` 或 `Failed`。
+`Searching` 提供已完成页数和总页数；`Failed` 保留原始异常。协程取消仍会向
+调用方抛出，并清理对应的未完成搜索。
+
+搜索完成后，第一个结果会成为当前项。应用可以提供上一个/下一个按钮，并滚动到
+选中结果所在页面：
+
+```kotlin
+scope.launch {
+    state.selectNextSearchResult()?.let { result ->
+        state.animateScrollToPage(result.pageIndex)
+    }
+}
+
+scope.launch {
+    state.selectPreviousSearchResult()?.let { result ->
+        state.animateScrollToPage(result.pageIndex)
+    }
+}
+```
+
+两种导航方法默认会首尾循环，传入 `wrapAround = false` 可停在边界。
+也可以调用 `selectSearchResult(index)` 直接选择结果，或调用
+`clearSearch()` 清除搜索。
+
+通过 `searchHighlightStyle` 配置普通结果和当前结果：
+
+```kotlin
+PdfView(
+    document = document,
+    state = state,
+    searchHighlightStyle =
+        PdfSearchHighlightStyle(
+            match =
+                PdfSearchHighlightDecoration(
+                    fillColor = Color.Yellow.copy(alpha = 0.3f),
+                    cornerRadius = 2.dp,
+                    padding = 1.dp,
+                ),
+            selectedMatch =
+                PdfSearchHighlightDecoration(
+                    fillColor = Color(0x6681D4FA),
+                    strokeColor = Color(0xFF0277BD),
+                    strokeWidth = 2.dp,
+                    cornerRadius = 2.dp,
+                ),
+        ),
+)
+```
+
+搜索结果属于具体文档，不会写入 `rememberPdfViewState` 的保存状态；绑定其他
+文档时会自动清除。Viewer 当前会滚动到结果所在页面，不会进一步将页内矩形精确
+居中。
 
 ## 加载状态和页面错误
 
@@ -250,7 +340,7 @@ PdfView(
 当前 Viewer 尚未提供：
 
 - 可选择文本；
-- 搜索 UI 和搜索结果高亮；
+- 内置搜索输入框或搜索导航按钮；
 - 书签或缩略图导航；
 - 表单交互；
 - 极高缩放级别所需的分块渲染。

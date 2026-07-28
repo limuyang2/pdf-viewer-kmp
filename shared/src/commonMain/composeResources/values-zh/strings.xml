@@ -4,10 +4,24 @@
     <string name="sample_dummy_description">基础三页 PDF</string>
     <string name="sample_rich_title">文本、图片和链接 · 2 页</string>
     <string name="sample_rich_description">包含文本、图片和链接的 PDF</string>
+    <string name="search_demo_title">搜索与高亮测试</string>
+    <string name="search_demo_description">测试搜索选项、结果导航和自定义高亮样式</string>
     <string name="sample_broken_title">损坏的 PDF · 加载错误</string>
     <string name="sample_broken_description">故意损坏的 PDF，用于测试加载错误页面</string>
     <string name="page_load_failed">第 %1$d 页加载失败</string>
     <string name="back">返回</string>
     <string name="pdf_load_failed">PDF 加载失败</string>
     <string name="unknown_error">未知错误</string>
+    <string name="search_query_label">搜索文本</string>
+    <string name="search_action">搜索</string>
+    <string name="search_clear">清除</string>
+    <string name="search_previous">上一个</string>
+    <string name="search_next">下一个</string>
+    <string name="match_case">区分大小写</string>
+    <string name="match_whole_word">全词匹配</string>
+    <string name="search_idle">输入关键词并开始搜索</string>
+    <string name="search_progress">正在搜索第 %1$d / %2$d 页</string>
+    <string name="search_completed">共 %1$d 个结果</string>
+    <string name="search_failed">搜索失败：%1$s</string>
+    <string name="search_result_position">%1$d / %2$d</string>
 </resources>

@@ -59,6 +59,8 @@ import pdfdemo.shared.generated.resources.sample_dummy_description
 import pdfdemo.shared.generated.resources.sample_dummy_title
 import pdfdemo.shared.generated.resources.sample_rich_description
 import pdfdemo.shared.generated.resources.sample_rich_title
+import pdfdemo.shared.generated.resources.search_demo_description
+import pdfdemo.shared.generated.resources.search_demo_title
 import pdfdemo.shared.generated.resources.unknown_error
 
 @Composable
@@ -86,6 +88,18 @@ fun App() {
                             NavEntry(key) {
                                 PdfSamplesScreen(
                                     onOpenPdf = backStack::add,
+                                    onOpenSearch = {
+                                        backStack.add(PdfSearchRoute)
+                                    },
+                                )
+                            }
+
+                        PdfSearchRoute ->
+                            NavEntry(key) {
+                                PdfSearchScreen(
+                                    onBack = {
+                                        backStack.removeLastOrNull()
+                                    },
                                 )
                             }
 
@@ -110,6 +124,7 @@ fun App() {
 @Composable
 private fun PdfSamplesScreen(
     onOpenPdf: (PdfRoute) -> Unit,
+    onOpenSearch: () -> Unit,
 ) {
     Column(
         modifier =
@@ -148,6 +163,12 @@ private fun PdfSamplesScreen(
                     ),
                 )
             },
+        )
+        PdfSampleButton(
+            title = stringResource(Res.string.search_demo_title),
+            description =
+                stringResource(Res.string.search_demo_description),
+            onClick = onOpenSearch,
         )
         PdfSampleButton(
             title = stringResource(Res.string.sample_broken_title),
@@ -291,7 +312,7 @@ private fun PdfDocumentScreen(
 }
 
 @Composable
-private fun PdfToolbar(
+internal fun PdfToolbar(
     title: String,
     document: PdfDocument?,
     currentPage: Int,
@@ -351,7 +372,7 @@ private fun PdfToolbar(
 }
 
 @Composable
-private fun PdfOpenError(
+internal fun PdfOpenError(
     failure: Throwable,
 ) {
     Box(
@@ -385,6 +406,8 @@ private fun PdfOpenError(
 
 private data object PdfSamplesRoute
 
+private data object PdfSearchRoute
+
 private data class PdfRoute(
     val title: StringResource,
     val resourcePath: String,
@@ -392,7 +415,7 @@ private data class PdfRoute(
 
 private const val DUMMY_PDF_RESOURCE: String =
     "files/pdfs/dummy-3-pages.pdf"
-private const val SAMPLE_PDF_RESOURCE: String =
+internal const val SAMPLE_PDF_RESOURCE: String =
     "files/pdfs/sample-text-images-links-2-pages.pdf"
 private const val BROKEN_PDF_RESOURCE: String =
     "files/pdfs/broken-loading-error.pdf"
