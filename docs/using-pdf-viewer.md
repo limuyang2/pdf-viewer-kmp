@@ -10,7 +10,7 @@ the zoom level changes.
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.limuyang2:pdf-viewer:0.1.1")
+            implementation("io.github.limuyang2:pdf-viewer:0.2.1")
         }
     }
 }
