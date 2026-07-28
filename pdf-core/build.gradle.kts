@@ -118,19 +118,23 @@ kotlin {
             cinterops.create("pdfviewerCore") {
                 definitionFile.set(pdfiumInteropDefinition)
                 includeDirs(nativeCoreHeaders)
+                extraOpts(
+                    "-libraryPath",
+                    nativeCoreOutput.get().asFile.absolutePath,
+                )
             }
+        }
+
+        tasks.named("cinteropPdfviewerCore$taskSuffix") {
+            dependsOn(archiveNativeCore)
         }
 
         target.binaries.all {
             freeCompilerArgs += deploymentTargetOverride
             linkerOpts(
-                nativeCoreArchive.get().asFile.absolutePath,
                 "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
                 "-lpdfium",
             )
-            linkTaskProvider.configure {
-                dependsOn(archiveNativeCore)
-            }
         }
 
         target.binaries.framework {
