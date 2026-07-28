@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -11,7 +10,7 @@ plugins {
 }
 
 kotlin {
-    val pdfiumIosDeploymentTarget = "26.0"
+    val pdfiumIosDeploymentTarget = "14.0"
 
     android {
         namespace = "io.github.limuyang2.pdf.core"
@@ -121,6 +120,8 @@ kotlin {
                 extraOpts(
                     "-libraryPath",
                     nativeCoreOutput.get().asFile.absolutePath,
+                    "-libraryPath",
+                    pdfiumLibraries.resolve(libraryDirectory).absolutePath,
                 )
             }
         }
@@ -131,33 +132,11 @@ kotlin {
 
         target.binaries.all {
             freeCompilerArgs += deploymentTargetOverride
-            linkerOpts(
-                "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
-                "-lpdfium",
-            )
         }
 
         target.binaries.framework {
             baseName = "PdfViewerKit"
         }
-    }
-
-    val syncPdfiumForIosSimulatorTests =
-        tasks.register<Copy>("syncPdfiumForIosSimulatorTests") {
-            dependsOn("linkDebugTestIosSimulatorArm64")
-            from(
-                pdfiumLibraries.resolve(
-                    "iosSimulatorArm64/libpdfium.dylib",
-                ),
-            )
-            into(
-                layout.buildDirectory.dir(
-                    "bin/iosSimulatorArm64/debugTest/Frameworks",
-                ),
-            )
-        }
-    tasks.named<KotlinNativeTest>("iosSimulatorArm64Test") {
-        dependsOn(syncPdfiumForIosSimulatorTests)
     }
 
     sourceSets {
@@ -192,7 +171,7 @@ kotlin {
 }
 
 val libraryGroup = "io.github.limuyang2"
-val libraryVersion = "0.2.1"
+val libraryVersion = "0.2.2"
 
 extra["publicationGroup"] = libraryGroup
 extra["publicationVersion"] = libraryVersion

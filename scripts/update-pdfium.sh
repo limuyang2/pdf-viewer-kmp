@@ -63,8 +63,6 @@ for classifier in \
     android-arm64 \
     android-x86 \
     android-x64 \
-    ios-device-arm64 \
-    ios-simulator-arm64 \
     mac-arm64 \
     mac-x64 \
     win-x64 \
@@ -90,20 +88,33 @@ extract_file android-x86 lib/libpdfium.so \
 extract_file android-x64 lib/libpdfium.so \
     "$stage_dir/android/x86_64/libpdfium.so"
 
-extract_file ios-device-arm64 lib/libpdfium.dylib \
-    "$stage_dir/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib"
-extract_file ios-simulator-arm64 lib/libpdfium.dylib \
-    "$stage_dir/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib"
+current_manifest="$module_dir/src/jvmMain/resources/pdfium/manifest.properties"
+current_version=$(
+    sed -n 's/^version=//p' "$current_manifest" 2>/dev/null || true
+)
+ios_static_root=${PDFIUM_IOS_STATIC_ROOT:-}
 
-if ! command -v install_name_tool >/dev/null 2>&1; then
-    echo "install_name_tool is required to prepare the iOS PDFium binaries" >&2
+if [ -n "$ios_static_root" ]; then
+    ios_static_source="$ios_static_root"
+elif [ "$current_version" = "$version" ]; then
+    ios_static_source="$module_dir/src/nativeInterop/cinterop/lib"
+else
+    echo "PDFIUM_IOS_STATIC_ROOT is required when updating iOS PDFium" >&2
+    echo "Build static device and simulator arm64 archives for $version first." >&2
     exit 1
 fi
 
-install_name_tool -id @rpath/libpdfium.dylib \
-    "$stage_dir/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib"
-install_name_tool -id @rpath/libpdfium.dylib \
-    "$stage_dir/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib"
+for target in iosArm64 iosSimulatorArm64
+do
+    source_archive="$ios_static_source/$target/libpdfium.a"
+    if [ ! -f "$source_archive" ]; then
+        echo "Missing static iOS PDFium archive: $source_archive" >&2
+        exit 1
+    fi
+    mkdir -p "$stage_dir/nativeInterop/cinterop/lib/$target"
+    cp "$source_archive" \
+        "$stage_dir/nativeInterop/cinterop/lib/$target/libpdfium.a"
+done
 
 extract_file mac-arm64 lib/libpdfium.dylib \
     "$stage_dir/jvm/pdfium/darwin-aarch64/libpdfium.dylib"

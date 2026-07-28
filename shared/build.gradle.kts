@@ -9,14 +9,12 @@ plugins {
 }
 
 kotlin {
-    val pdfiumIosDeploymentTarget = "26.0"
-    val pdfiumLibraries =
-        project(":pdf-core").projectDir.resolve("src/nativeInterop/cinterop/lib")
+    val pdfiumIosDeploymentTarget = "14.0"
 
     listOf(
-        iosArm64() to "iosArm64",
-        iosSimulatorArm64() to "iosSimulatorArm64",
-    ).forEach { (iosTarget, libraryDirectory) ->
+        iosArm64(),
+        iosSimulatorArm64(),
+    ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = false
@@ -25,10 +23,6 @@ kotlin {
                 "-Xoverride-konan-properties=" +
                     "osVersionMin.ios_arm64=$pdfiumIosDeploymentTarget;" +
                     "osVersionMin.ios_simulator_arm64=$pdfiumIosDeploymentTarget"
-            linkerOpts(
-                "-L${pdfiumLibraries.resolve(libraryDirectory).absolutePath}",
-                "-lpdfium",
-            )
         }
     }
     

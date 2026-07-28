@@ -138,8 +138,8 @@ UI、链接处理等内容，请参阅
 - **浏览器：** 需要在配置的 PDFium 静态资源目录中部署
   `manifest.properties`、`pdfium-adapter.js`、`pdfium.js` 和
   `pdfium.wasm`。
-- **iOS：** 最低部署版本为 iOS 26.0，应用必须嵌入并签名匹配的
-  `libpdfium.dylib`。
+- **iOS：** 最低部署版本为 iOS 14.0。PDFium 已通过发布的 KLIB 静态链接，
+  应用无需额外嵌入动态库。
 
 详细配置参见
 [PDF Core 使用指南](docs/using-pdf-core.zh-CN.md#各平台配置)。

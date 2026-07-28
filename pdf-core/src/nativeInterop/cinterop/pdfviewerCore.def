@@ -1,3 +1,4 @@
 headers = pdfviewer_core.h
 package = io.github.limuyang2.pdf.core.internal.nativecore
-staticLibraries = libpdfviewer_core.a
+staticLibraries = libpdfviewer_core.a libpdfium.a
+linkerOpts = -lc++ -framework CoreFoundation -framework CoreGraphics

@@ -10,16 +10,16 @@ This release fixes iOS build and runtime integration issues.
 
 - Embed `libpdfviewer_core.a` in the cinterop KLIB to resolve missing `pdfv_*`
   symbols when linking final Kotlin/Native frameworks.
+- Embed static PDFium in the published iOS KLIB so external consumers resolve
+  all `FPDF*` symbols without local linker paths or runtime dylib embedding.
 - Ensure device arm64 and simulator arm64 builds generate and include the
   native PDF bridge for the selected architecture.
+- Lower the bundled iOS binary deployment target from iOS 26.0 to iOS 14.0.
 
 ### iOS Demo
 
-- Copy the platform-specific `libpdfium.dylib` into the app's `Frameworks`
-  directory and code-sign it for device and simulator builds.
-- Ensure Xcode Kotlin build support skips only the redundant Gradle invocation,
-  not PDFium embedding, preventing
-  `Library not loaded: @rpath/libpdfium.dylib` at launch.
+- Remove the PDFium dylib copy and code-sign phase because PDFium is now linked
+  statically into the Kotlin framework.
 
 ## 0.2.0 - 2026-07-28
 

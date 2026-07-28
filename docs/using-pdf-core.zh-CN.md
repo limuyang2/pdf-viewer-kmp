@@ -263,23 +263,12 @@ globalThis.__pdfViewerPdfiumBaseUrl = "/assets/pdfium/";
 
 ### iOS
 
-内置 iOS 二进制要求 iOS 26.0 或更高版本。目前支持真机 arm64 和模拟器
+内置 iOS 二进制要求 iOS 14.0 或更高版本。目前支持真机 arm64 和模拟器
 arm64。
 
-Kotlin framework 通过以下路径动态链接 PDFium：
-
-```text
-@rpath/libpdfium.dylib
-```
-
-应用必须复制并签名对应的动态库：
-
-```text
-pdf-core/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib
-pdf-core/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib
-```
-
-示例 `iosApp` Xcode 工程展示了如何选择、嵌入和签名正确的 dylib。
+PDFium 和原生 bridge 已作为静态归档嵌入发布的 cinterop KLIB。外部 Kotlin
+Multiplatform 工程只需声明 Maven 依赖，无需额外配置链接搜索路径、复制
+dylib 或在运行时为 PDFium 签名。
 
 ## 当前限制
 

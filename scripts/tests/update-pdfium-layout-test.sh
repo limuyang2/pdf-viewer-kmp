@@ -6,6 +6,7 @@ project_root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 web_pdfium_dir="$project_root/pdf-core/src/webMain/resources/pdfium"
 jvm_manifest="$project_root/pdf-core/src/jvmMain/resources/pdfium/manifest.properties"
 web_manifest="$web_pdfium_dir/manifest.properties"
+ios_cinterop_dir="$project_root/pdf-core/src/nativeInterop/cinterop"
 
 grep -q '__pdfViewerCreatePdfiumModule' "$web_pdfium_dir/pdfium.js"
 test -f "$web_pdfium_dir/pdfium-adapter.js"
@@ -34,3 +35,14 @@ verify_runtime_digest linux-x64 \
     "$project_root/pdf-core/src/jvmMain/resources/pdfium/linux-x86-64/libpdfium.so"
 verify_runtime_digest win-x64 \
     "$project_root/pdf-core/src/jvmMain/resources/pdfium/win32-x86-64/pdfium.dll"
+
+test -f \
+    "$ios_cinterop_dir/lib/iosArm64/libpdfium.a"
+test -f \
+    "$ios_cinterop_dir/lib/iosSimulatorArm64/libpdfium.a"
+grep -q \
+    '^staticLibraries = libpdfviewer_core\.a libpdfium\.a$' \
+    "$ios_cinterop_dir/pdfviewerCore.def"
+grep -q \
+    '^linkerOpts = -lc++ -framework CoreFoundation -framework CoreGraphics$' \
+    "$ios_cinterop_dir/pdfviewerCore.def"

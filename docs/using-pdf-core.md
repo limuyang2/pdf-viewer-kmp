@@ -274,24 +274,13 @@ The trailing slash is required.
 
 ### iOS
 
-The bundled iOS binaries require iOS 26.0 or newer. Supported targets are
+The bundled iOS binaries require iOS 14.0 or newer. Supported targets are
 device arm64 and simulator arm64.
 
-The Kotlin framework links PDFium dynamically as:
-
-```text
-@rpath/libpdfium.dylib
-```
-
-The application must copy and code-sign the matching library:
-
-```text
-pdf-core/src/nativeInterop/cinterop/lib/iosArm64/libpdfium.dylib
-pdf-core/src/nativeInterop/cinterop/lib/iosSimulatorArm64/libpdfium.dylib
-```
-
-The sample `iosApp` Xcode project demonstrates selecting, embedding, and
-signing the correct dylib.
+PDFium and the native bridge are embedded as static archives in the published
+cinterop KLIB. A consuming Kotlin Multiplatform project only needs the Maven
+dependency; it does not need extra linker search paths, dylib copy phases, or
+runtime code signing for PDFium.
 
 ## Current limitations
 

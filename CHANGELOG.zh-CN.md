@@ -10,15 +10,15 @@
 
 - 将 `libpdfviewer_core.a` 嵌入 cinterop KLIB，修复最终 Kotlin/Native
   framework 链接时缺少 `pdfv_*` 符号的问题。
+- 将静态 PDFium 嵌入发布的 iOS KLIB，外部工程无需本地链接路径或动态库
+  嵌入即可解析全部 `FPDF*` 符号。
 - 确保真机 arm64 和模拟器 arm64 构建都会先生成并包含对应架构的原生
   PDF bridge。
+- 内置 iOS 二进制的最低部署版本由 iOS 26.0 降至 iOS 14.0。
 
 ### iOS Demo
 
-- 根据真机或模拟器平台，将对应的 `libpdfium.dylib` 自动复制到 App 的
-  `Frameworks` 目录并完成代码签名。
-- 修复启用 Xcode Kotlin 构建支持时跳过 PDFium 嵌入步骤，导致启动时出现
-  `Library not loaded: @rpath/libpdfium.dylib` 的问题。
+- PDFium 改为静态链接后，移除动态库复制与签名阶段。
 
 ## 0.2.0 - 2026-07-28
 
