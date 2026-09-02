@@ -20,7 +20,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # macOS: generating docs compiles the iOS targets, which need Xcode toolchain
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +36,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Generate Dokka HTML
-        run: ./gradlew :dokkaGeneratePublicationHtml
+        run: ./gradlew :dokkaGeneratePublicationHtml --stacktrace
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
