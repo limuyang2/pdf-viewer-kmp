@@ -60,10 +60,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // PDF APIs only:
-            implementation("io.github.limuyang2:pdf-core:0.2.2")
+            implementation("io.github.limuyang2:pdf-core:0.3.0")
 
             // Or the Compose viewer. pdf-core is included transitively:
-            implementation("io.github.limuyang2:pdf-viewer:0.2.2")
+            implementation("io.github.limuyang2:pdf-viewer:0.3.0")
         }
     }
 }

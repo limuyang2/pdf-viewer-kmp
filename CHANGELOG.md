@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-09-02
+
 ### PDF Core
 
 - Release JVM JNA document memory on every failed-open path without corrupting

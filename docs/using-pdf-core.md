@@ -10,7 +10,7 @@ PDF links.
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.limuyang2:pdf-core:0.2.2")
+            implementation("io.github.limuyang2:pdf-core:0.3.0")
         }
     }
 }
