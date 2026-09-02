@@ -21,6 +21,13 @@ rendering, and displaying PDF documents.
 
 Download the signed Android demo: [pdf-viewer-kmp-demo.apk](demo/pdf-viewer-kmp-demo.apk).
 
+The screenshots below were captured from the demo running on an OPPO Android
+device:
+
+| Demo home | PDF viewer | Search and highlighting |
+| --- | --- | --- |
+| <img src="demo/demo-home.png" alt="Android demo home screen" width="260"> | <img src="demo/pdf-viewer.png" alt="PDF displayed in the Android demo" width="260"> | <img src="demo/pdf-search.png" alt="PDF text search and result highlighting" width="260"> |
+
 The project is split into two public libraries:
 
 | Library | Purpose |

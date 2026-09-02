@@ -4,6 +4,11 @@
 `PdfDocument` 显示为纵向延迟加载的页面列表，并在缩放级别变化后重新渲染
 页面。
 
+<p align="center">
+  <img src="../demo/pdf-viewer.png" alt="Android Demo 中显示 PDF" width="320">
+  <img src="../demo/pdf-search.png" alt="PDF 文本搜索与结果高亮" width="320">
+</p>
+
 ## 添加依赖
 
 ```kotlin

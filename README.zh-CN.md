@@ -21,6 +21,12 @@ PDF Viewer KMP 是基于 PDFium 的 Kotlin Multiplatform PDF 库，可用于
 
 下载已签名的 Android 示例应用：[pdf-viewer-kmp-demo.apk](demo/pdf-viewer-kmp-demo.apk)。
 
+以下截图来自在 OPPO Android 真机上运行的 Demo：
+
+| Demo 首页 | PDF 阅读器 | 搜索与高亮 |
+| --- | --- | --- |
+| <img src="demo/demo-home.png" alt="Android Demo 首页" width="260"> | <img src="demo/pdf-viewer.png" alt="Android Demo 中显示 PDF" width="260"> | <img src="demo/pdf-search.png" alt="PDF 文本搜索与结果高亮" width="260"> |
+
 项目包含两个公开库：
 
 | 库 | 用途 |
