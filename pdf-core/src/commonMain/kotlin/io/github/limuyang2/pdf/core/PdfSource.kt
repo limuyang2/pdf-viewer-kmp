@@ -14,6 +14,7 @@ sealed interface PdfSource : AutoCloseable {
      * the array while the document is open.
      */
     class Bytes(
+        /** Document bytes; retained until the document closes. */
         val data: ByteArray,
     ) : PdfSource {
         override fun close() = Unit
@@ -26,8 +27,14 @@ sealed interface PdfSource : AutoCloseable {
      * into [PdfViewer] from [read].
      */
     interface RandomAccess : PdfSource {
+        /** Total byte length of the source. */
         val size: Long
 
+        /**
+         * Reads up to [length] bytes starting at [offset] into
+         * [destination] at [destinationOffset] and returns how many bytes
+         * were read.
+         */
         fun read(
             offset: Long,
             destination: ByteArray,

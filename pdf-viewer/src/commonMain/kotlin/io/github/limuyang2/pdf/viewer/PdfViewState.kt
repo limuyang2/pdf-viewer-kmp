@@ -30,7 +30,9 @@ import kotlin.math.roundToInt
  */
 @Stable
 class PdfViewState internal constructor(
+    /** Vertical lazy-list state backing the page list. */
     val listState: LazyListState,
+    /** Horizontal scroll state used when a zoomed page is wider than the viewport. */
     val horizontalScrollState: ScrollState,
     initialZoom: Float,
     initialMaximumZoom: Float = DEFAULT_MAX_ZOOM,
@@ -643,19 +645,39 @@ data class PdfSearchScrollAlignment(
  * Current document-search lifecycle.
  */
 sealed interface PdfViewSearchStatus {
+    /** No search has been started, or the previous one was cleared. */
     data object Idle : PdfViewSearchStatus
 
+    /**
+     * A search is running and results arrive page by page.
+     *
+     * @property query the searched text.
+     * @property completedPageCount how many pages have been searched.
+     * @property totalPageCount total number of pages to search.
+     */
     data class Searching(
         val query: String,
         val completedPageCount: Int,
         val totalPageCount: Int,
     ) : PdfViewSearchStatus
 
+    /**
+     * The search finished successfully.
+     *
+     * @property query the searched text.
+     * @property resultCount number of matches across the document.
+     */
     data class Completed(
         val query: String,
         val resultCount: Int,
     ) : PdfViewSearchStatus
 
+    /**
+     * The search aborted with an error; collected results are cleared.
+     *
+     * @property query the searched text.
+     * @property error the failure that stopped the search.
+     */
     data class Failed(
         val query: String,
         val error: Throwable,
