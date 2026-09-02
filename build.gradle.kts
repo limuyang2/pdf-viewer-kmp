@@ -8,4 +8,13 @@ plugins {
     alias(libs.plugins.kotlinJvm) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.androidLint) apply false
+
+    // Aggregates the Dokka HTML of :pdf-core and :pdf-viewer into
+    // :dokkaGeneratePublicationHtml (build/dokka/html)
+    alias(libs.plugins.dokka)
+}
+
+dependencies {
+    dokka(project(":pdf-core"))
+    dokka(project(":pdf-viewer"))
 }

@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | `pdf-core` | [Using PDF Core](docs/using-pdf-core.md) | [PDF Core 使用指南](docs/using-pdf-core.zh-CN.md) |
 | `pdf-viewer` | [Using PDF Viewer](docs/using-pdf-viewer.md) | [PDF Viewer 使用指南](docs/using-pdf-viewer.zh-CN.md) |
+| API reference | [Dokka](https://limuyang2.github.io/pdf-viewer-kmp/) | — |
 
 PDF Viewer KMP is a PDFium-backed Kotlin Multiplatform library for reading,
 rendering, and displaying PDF documents.

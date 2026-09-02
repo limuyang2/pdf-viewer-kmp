@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | `pdf-core` | [Using PDF Core](docs/using-pdf-core.md) | [PDF Core 使用指南](docs/using-pdf-core.zh-CN.md) |
 | `pdf-viewer` | [Using PDF Viewer](docs/using-pdf-viewer.md) | [PDF Viewer 使用指南](docs/using-pdf-viewer.zh-CN.md) |
+| API 参考 | [Dokka](https://limuyang2.github.io/pdf-viewer-kmp/) | — |
 
 PDF Viewer KMP 是基于 PDFium 的 Kotlin Multiplatform PDF 库，可用于
 读取、渲染和显示 PDF 文档。
