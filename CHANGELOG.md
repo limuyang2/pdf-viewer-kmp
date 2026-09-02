@@ -2,8 +2,6 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
-## Unreleased
-
 ## 0.3.0 - 2026-09-02
 
 ### PDF Core

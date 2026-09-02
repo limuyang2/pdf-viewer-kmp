@@ -2,8 +2,6 @@
 
 [English](CHANGELOG.md)
 
-## 未发布
-
 ## 0.3.0 - 2026-09-02
 
 ### PDF Core
