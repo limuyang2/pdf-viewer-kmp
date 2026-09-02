@@ -1,5 +1,6 @@
 package io.github.limuyang2.pdf.core.contract
 
+import io.github.limuyang2.pdf.core.PdfColor
 import io.github.limuyang2.pdf.core.PdfIncorrectPasswordException
 import io.github.limuyang2.pdf.core.PdfLinkTarget
 import io.github.limuyang2.pdf.core.PdfPixelSize
@@ -46,6 +47,29 @@ class JvmPdfiumBackendIntegrationTest {
                     PdfContractExpectations.UnicodeText,
                     document[0].extractText(),
                 )
+            }
+        }
+
+    @Test
+    fun rendersAsymmetricBackgroundInBgraOrder() =
+        runTest {
+            PdfViewer.open(PdfSource.Bytes(createSinglePageTestPdf(""))).use { document ->
+                document[0]
+                    .render(
+                        PdfRenderRequest(
+                            outputSize = PdfPixelSize(8, 8),
+                            backgroundColor = PdfColor(0xFF123456u),
+                        ),
+                    ).use { bitmap ->
+                        assertBgraPixel(
+                            pixels = bitmap.copyPixels(),
+                            offset = 0,
+                            blue = 0x56,
+                            green = 0x34,
+                            red = 0x12,
+                            alpha = 0xFF,
+                        )
+                    }
             }
         }
 
@@ -102,4 +126,18 @@ class JvmPdfiumBackendIntegrationTest {
             }.bufferedReader().use { it.readText() }
         return PdfSource.Bytes(decodePdfContractFixture(encoded))
     }
+}
+
+private fun assertBgraPixel(
+    pixels: ByteArray,
+    offset: Int,
+    blue: Int,
+    green: Int,
+    red: Int,
+    alpha: Int,
+) {
+    assertEquals(blue, pixels[offset].toInt() and 0xFF)
+    assertEquals(green, pixels[offset + 1].toInt() and 0xFF)
+    assertEquals(red, pixels[offset + 2].toInt() and 0xFF)
+    assertEquals(alpha, pixels[offset + 3].toInt() and 0xFF)
 }

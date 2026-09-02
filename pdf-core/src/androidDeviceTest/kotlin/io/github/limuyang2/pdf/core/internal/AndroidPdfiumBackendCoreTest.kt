@@ -1,5 +1,6 @@
 package io.github.limuyang2.pdf.core.internal
 
+import io.github.limuyang2.pdf.core.PdfColor
 import io.github.limuyang2.pdf.core.PdfInvalidFormatException
 import io.github.limuyang2.pdf.core.PdfPixelFormat
 import io.github.limuyang2.pdf.core.PdfPixelSize
@@ -36,7 +37,10 @@ internal class AndroidPdfiumBackendCoreTest {
 
                 val rendered =
                     document[0].render(
-                        PdfRenderRequest(PdfPixelSize(20, 30)),
+                        PdfRenderRequest(
+                            outputSize = PdfPixelSize(20, 30),
+                            backgroundColor = PdfColor(0xFF123456u),
+                        ),
                     )
                 bitmap = rendered
                 assertEquals(PdfPixelFormat.Bgra8888, rendered.format)
@@ -44,7 +48,7 @@ internal class AndroidPdfiumBackendCoreTest {
                 val pixels = rendered.copyPixels()
                 assertEquals(2_400, pixels.size)
                 assertContentEquals(
-                    byteArrayOf(-1, -1, -1, -1),
+                    byteArrayOf(0x56, 0x34, 0x12, -1),
                     pixels.copyOfRange(0, 4),
                 )
 

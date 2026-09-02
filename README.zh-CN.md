@@ -90,7 +90,7 @@ suspend fun renderFirstPage(pdfBytes: ByteArray): ByteArray {
             bitmap.close()
         }
     } finally {
-        document.close()
+        document.closeAndAwait()
     }
 }
 ```

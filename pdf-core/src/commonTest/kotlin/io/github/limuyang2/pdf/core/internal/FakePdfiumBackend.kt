@@ -3,6 +3,7 @@ package io.github.limuyang2.pdf.core.internal
 import io.github.limuyang2.pdf.core.PdfBitmap
 import io.github.limuyang2.pdf.core.PdfBookmark
 import io.github.limuyang2.pdf.core.PdfCapabilities
+import io.github.limuyang2.pdf.core.PdfColor
 import io.github.limuyang2.pdf.core.PdfDocumentInfo
 import io.github.limuyang2.pdf.core.PdfLink
 import io.github.limuyang2.pdf.core.PdfMetadata
@@ -166,7 +167,7 @@ internal class FakePdfiumBackend(
         request: PdfRenderRequest,
     ): PdfBitmap {
         calls += "render:$pageIndex:${request.outputSize.width}x${request.outputSize.height}"
-        return FakePdfBitmap(request.outputSize)
+        return FakePdfBitmap(request.outputSize, request.backgroundColor)
     }
 
     override fun thumbnail(
@@ -220,6 +221,7 @@ internal class FakePdfiumBackend(
 
 internal class FakePdfBitmap(
     size: PdfPixelSize,
+    backgroundColor: PdfColor = PdfColor.Transparent,
 ) : PdfBitmap {
     override val width: Int = size.width
     override val height: Int = size.height
@@ -228,7 +230,15 @@ internal class FakePdfBitmap(
     override var isClosed: Boolean = false
         private set
 
-    private val pixels = ByteArray(stride * height)
+    private val pixels =
+        ByteArray(stride * height).also { buffer ->
+            for (offset in buffer.indices step PdfPixelFormat.Bgra8888.bytesPerPixel) {
+                buffer[offset] = backgroundColor.blue.toByte()
+                buffer[offset + 1] = backgroundColor.green.toByte()
+                buffer[offset + 2] = backgroundColor.red.toByte()
+                buffer[offset + 3] = backgroundColor.alpha.toByte()
+            }
+        }
 
     override fun copyPixels(): ByteArray {
         check(!isClosed) { "bitmap is closed" }

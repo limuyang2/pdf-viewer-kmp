@@ -13,7 +13,10 @@ data class PdfRenderRequest(
     val sourceRect: PdfRect? = null,
     /** Extra rotation applied on top of the page's intrinsic rotation. */
     val rotation: PdfRotation = PdfRotation.Degrees0,
-    /** Fill color painted behind the page content. */
+    /**
+     * Fill color painted behind the page content. The color is expressed as
+     * ARGB; returned pixel bytes still follow [PdfBitmap.format].
+     */
     val backgroundColor: PdfColor = PdfColor.White,
     /** Whether annotation appearances are painted on top of page content. */
     val renderAnnotations: Boolean = true,

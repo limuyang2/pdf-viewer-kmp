@@ -31,7 +31,7 @@ suspend fun inspectDocument(bytes: ByteArray) {
         println("PDF version: ${document.information().version}")
         println("Title: ${document.metadata().title}")
     } finally {
-        document.close()
+        document.closeAndAwait()
     }
 }
 ```
@@ -59,10 +59,13 @@ password throws `PdfIncorrectPasswordException`.
 ## Resource ownership
 
 - `PdfDocument` and `PdfBitmap` implement `AutoCloseable`; always close them.
-- `close()` is idempotent.
-- `PdfDocument.close()` waits synchronously for an active native operation.
-- Use `document.closeAndAwait()` when waiting must not block the calling
-  thread.
+- `close()` is idempotent. If the first close fails, later close calls rethrow
+  the same failure without repeating cleanup.
+- On JVM, Android, and iOS, `PdfDocument.close()` waits synchronously for an
+  active native operation and can therefore block a UI thread. Web PDFium work
+  is serialized on the JavaScript event loop instead.
+- Use `document.closeAndAwait()` from a coroutine when waiting must not block
+  the calling thread. Once invoked, its wait and cleanup are non-cancellable.
 - `PdfPage` is a lightweight descriptor. It becomes invalid when its parent
   document closes.
 - A rendered bitmap owns its Kotlin pixel buffer and can outlive the document.

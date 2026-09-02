@@ -147,7 +147,7 @@ private class ContractFakePdfiumBackend(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
-    ) = FakePdfBitmap(request.outputSize)
+    ) = FakePdfBitmap(request.outputSize, request.backgroundColor)
 
     override fun thumbnail(
         document: NativeDocumentHandle,

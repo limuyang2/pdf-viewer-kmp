@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -146,7 +147,9 @@ fun PdfView(
         "maxZoom must be finite and at least ${PdfViewState.MIN_ZOOM}"
     }
 
-    state.bind(document, maxZoom)
+    SideEffect {
+        state.bind(document, maxZoom)
+    }
     var viewportSizePixels by remember {
         mutableStateOf(IntSize.Zero)
     }
@@ -272,16 +275,22 @@ fun PdfView(
                 .coerceAtLeast(1)
         val contentWidth = with(density) { contentWidthPixels.toDp() }
         val pageWidth = with(density) { displayedPageWidthPixels.toDp() }
-        state.updateLayoutMetrics(
-            document = document,
-            metrics =
+        val layoutMetrics =
+            remember(
+                viewportSizePixels,
+                displayedPageWidthPixels,
+                pagePaddingPixels,
+            ) {
                 PdfViewLayoutMetrics(
                     viewportWidth = viewportSizePixels.width,
                     viewportHeight = viewportSizePixels.height,
                     displayedPageWidth = displayedPageWidthPixels,
                     pagePadding = pagePaddingPixels,
-                ),
-        )
+                )
+            }
+        SideEffect {
+            state.updateLayoutMetrics(document, layoutMetrics)
+        }
         val requestedRenderWidthPixels =
             quantizeRenderWidth(
                 width = displayedPageWidthPixels,

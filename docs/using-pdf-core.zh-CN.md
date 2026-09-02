@@ -30,7 +30,7 @@ suspend fun inspectDocument(bytes: ByteArray) {
         println("PDF 版本：${document.information().version}")
         println("标题：${document.metadata().title}")
     } finally {
-        document.close()
+        document.closeAndAwait()
     }
 }
 ```
@@ -57,9 +57,12 @@ val document =
 ## 资源所有权
 
 - `PdfDocument` 和 `PdfBitmap` 均实现了 `AutoCloseable`，使用完毕后必须关闭。
-- `close()` 可以安全地重复调用。
-- `PdfDocument.close()` 会同步等待正在执行的原生操作结束。
-- 如果不能阻塞调用线程，可以使用 `document.closeAndAwait()`。
+- `close()` 可以安全地重复调用；如果第一次关闭失败，后续调用会重新抛出同一个
+  异常，而不会再次执行清理。
+- 在 JVM、Android 和 iOS 上，`PdfDocument.close()` 会同步等待正在执行的原生操作
+  结束，因此可能阻塞 UI 线程；Web PDFium 操作则由 JavaScript 事件循环串行执行。
+- 如果不能阻塞调用线程，请在协程中使用 `document.closeAndAwait()`；调用后，
+  等待和清理过程不可取消。
 - `PdfPage` 只是轻量级页面描述对象；其所属文档关闭后，该页面对象即失效。
 - 已渲染的位图拥有独立的 Kotlin 像素缓冲区，可以比文档存活更长时间。
 - PDFium 调用会在内部串行执行，公开的 suspend API 可以从不同协程调用。

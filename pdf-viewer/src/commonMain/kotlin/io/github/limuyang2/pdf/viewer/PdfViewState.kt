@@ -326,7 +326,7 @@ class PdfViewState internal constructor(
         document: PdfDocument,
         metrics: PdfViewLayoutMetrics,
     ) {
-        if (cachedDocument === document) {
+        if (cachedDocument === document && layoutMetrics != metrics) {
             layoutMetrics = metrics
         }
     }

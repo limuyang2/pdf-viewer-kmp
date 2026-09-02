@@ -99,31 +99,50 @@ internal object JvmPdfiumBackend : PdfiumBackend {
             "password must not contain a null character"
         }
 
-        val memory = Memory(bytes.size.toLong())
-        memory.write(0, bytes, 0, bytes.size)
         val pdfium = requireLibrary()
-        val pointer =
-            pdfium.FPDF_LoadMemDocument64(
-                memory,
-                NativeSize(bytes.size.toLong()),
-                password,
-            ) ?: throwOpenFailure(
-                errorCode = pdfium.FPDF_GetLastError().toInt(),
-                passwordWasSupplied = password != null,
-            )
-        val pageCount = pdfium.FPDF_GetPageCount(pointer)
-        if (pageCount < 0) {
-            pdfium.FPDF_CloseDocument(pointer)
-            throw PdfNativeException(
-                nativeErrorCode = 0,
-                message = "PDFium returned an invalid page count: $pageCount",
-            )
+        val memory = Memory(bytes.size.toLong())
+        var pointerToClose: Pointer? = null
+        try {
+            memory.write(0, bytes, 0, bytes.size)
+            val pointer =
+                pdfium.FPDF_LoadMemDocument64(
+                    memory,
+                    NativeSize(bytes.size.toLong()),
+                    password,
+                ) ?: throwOpenFailure(
+                    errorCode = pdfium.FPDF_GetLastError().toInt(),
+                    passwordWasSupplied = password != null,
+                )
+            pointerToClose = pointer
+            val pageCount = pdfium.FPDF_GetPageCount(pointer)
+            if (pageCount < 0) {
+                throw PdfNativeException(
+                    nativeErrorCode = 0,
+                    message = "PDFium returned an invalid page count: $pageCount",
+                )
+            }
+            val handle = Pointer.nativeValue(pointer)
+            check(handle !in documents) {
+                "PDFium returned a duplicate document handle"
+            }
+            documents[handle] = Document(pointer, memory)
+            pointerToClose = null
+            return OpenedDocument(NativeDocumentHandle(handle), pageCount)
+        } catch (failure: Throwable) {
+            pointerToClose?.let { pointer ->
+                try {
+                    pdfium.FPDF_CloseDocument(pointer)
+                } catch (cleanupFailure: Throwable) {
+                    failure.addSuppressed(cleanupFailure)
+                }
+            }
+            try {
+                memory.close()
+            } catch (cleanupFailure: Throwable) {
+                failure.addSuppressed(cleanupFailure)
+            }
+            throw failure
         }
-        val handle = Pointer.nativeValue(pointer)
-        check(documents.put(handle, Document(pointer, memory)) == null) {
-            "PDFium returned a duplicate document handle"
-        }
-        return OpenedDocument(NativeDocumentHandle(handle), pageCount)
     }
 
     override fun close(document: NativeDocumentHandle) {
@@ -133,8 +152,22 @@ internal object JvmPdfiumBackend : PdfiumBackend {
                     nativeErrorCode = 0,
                     message = "Unknown JVM PDFium document handle",
                 )
-        requireLibrary().FPDF_CloseDocument(opened.pointer)
-        opened.memory.close()
+        var failure: Throwable? = null
+        try {
+            requireLibrary().FPDF_CloseDocument(opened.pointer)
+        } catch (closeFailure: Throwable) {
+            failure = closeFailure
+        }
+        try {
+            opened.memory.close()
+        } catch (memoryFailure: Throwable) {
+            if (failure == null) {
+                failure = memoryFailure
+            } else {
+                failure.addSuppressed(memoryFailure)
+            }
+        }
+        failure?.let { throw it }
     }
 
     override fun documentInformation(

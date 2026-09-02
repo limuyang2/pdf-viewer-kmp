@@ -2,6 +2,24 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+### PDF Core
+
+- Release JVM JNA document memory on every failed-open path without corrupting
+  duplicate-handle bookkeeping.
+- Verify asymmetric render background colors in BGRA output across the shared
+  contract and platform integration tests.
+- Document synchronous and suspending close behavior, including repeated
+  cleanup failures and UI-thread blocking.
+
+### PDF Viewer
+
+- Convert Android BGRA pixels to ARGB integers with bulk little-endian buffer
+  reads while preserving padded-row stride support.
+- Publish document binding and layout metrics from Compose side effects instead
+  of mutating viewer state during composition.
+
 ## 0.2.2 - 2026-07-29
 
 This release makes the published iOS artifacts self-contained.

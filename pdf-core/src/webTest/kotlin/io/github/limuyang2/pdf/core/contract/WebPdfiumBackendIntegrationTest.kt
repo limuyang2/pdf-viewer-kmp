@@ -1,5 +1,6 @@
 package io.github.limuyang2.pdf.core.contract
 
+import io.github.limuyang2.pdf.core.PdfColor
 import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfSource
@@ -24,6 +25,34 @@ class WebPdfiumBackendIntegrationTest {
                     .use { bitmap ->
                         assertEquals(24 * 4, bitmap.stride)
                         assertEquals(24 * 32 * 4, bitmap.copyPixels().size)
+                    }
+            } finally {
+                document.closeAndAwait()
+            }
+        }
+
+    @Test
+    fun rendersAsymmetricBackgroundInBgraOrder() =
+        runTest {
+            val document =
+                PdfViewer.open(
+                    PdfSource.Bytes(createSinglePageTestPdf("")),
+                )
+            try {
+                document[0]
+                    .render(
+                        PdfRenderRequest(
+                            outputSize = PdfPixelSize(8, 8),
+                            backgroundColor = PdfColor(0xFF123456u),
+                        ),
+                    ).use { bitmap ->
+                        assertEquals(
+                            listOf(0x56, 0x34, 0x12, 0xFF),
+                            bitmap
+                                .copyPixels()
+                                .take(4)
+                                .map { it.toInt() and 0xFF },
+                        )
                     }
             } finally {
                 document.closeAndAwait()

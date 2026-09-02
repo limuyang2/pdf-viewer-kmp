@@ -6,6 +6,7 @@ import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -43,6 +44,20 @@ internal suspend fun PdfBackendContractScope.verifyRenderingContract() {
     assertEquals(32, region.width)
     assertEquals(24, region.height)
     region.close()
+
+    val asymmetricBackground = PdfColor(0xFF123456u)
+    val background =
+        open(PdfContractFixture.Blank)[0].render(
+            PdfRenderRequest(
+                outputSize = PdfPixelSize(8, 8),
+                backgroundColor = asymmetricBackground,
+            ),
+        )
+    assertContentEquals(
+        byteArrayOf(0x56, 0x34, 0x12, -1),
+        background.copyPixels().copyOfRange(0, 4),
+    )
+    background.close()
 
     val withThumbnail = open(PdfContractFixture.ThumbnailPresent)
     assertNotNull(withThumbnail[0].thumbnail(PdfPixelSize(48, 48))).close()
