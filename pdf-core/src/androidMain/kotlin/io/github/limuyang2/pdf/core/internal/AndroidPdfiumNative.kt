@@ -23,6 +23,8 @@ internal object AndroidPdfiumNative {
         tag: String,
     ): String?
 
+    external fun nativeLanguage(handle: Long): String?
+
     external fun nativePageLabel(
         handle: Long,
         pageIndex: Int,

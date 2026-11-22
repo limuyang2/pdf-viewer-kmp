@@ -12,6 +12,18 @@ import kotlin.test.assertTrue
 
 class WebPdfiumBackendIntegrationTest {
     @Test
+    fun readsCatalogLanguage() = runTest {
+        for (language in listOf(null, "en-US", "he", "zh-Hant")) {
+            val document = PdfViewer.open(PdfSource.Bytes(createSinglePageTestPdf("Text", language)))
+            try {
+                assertEquals(language, document.metadata().language)
+            } finally {
+                document.closeAndAwait()
+            }
+        }
+    }
+
+    @Test
     fun opensReadsRendersAndClosesPdf() =
         runTest {
             val text = "Browser PDFium"

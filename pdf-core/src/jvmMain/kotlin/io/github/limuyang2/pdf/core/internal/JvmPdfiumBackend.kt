@@ -219,6 +219,9 @@ internal object JvmPdfiumBackend : PdfiumBackend {
             producer = value("Producer"),
             creationDate = value("CreationDate"),
             modificationDate = value("ModDate"),
+            language = readUtf16(emptyAsNull = true) { buffer, length ->
+                requireLibrary().FPDFCatalog_GetLanguage(document(document), buffer, NativeLong(length))
+            },
         )
     }
 

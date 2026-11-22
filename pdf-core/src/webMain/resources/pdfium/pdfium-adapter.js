@@ -254,6 +254,12 @@
     }, true);
   }
 
+  function language(handle) {
+    return readUtf16(function (buffer, length) {
+      return requireModule()._FPDFCatalog_GetLanguage(handle, buffer, length);
+    }, true);
+  }
+
   function pageLabel(handle, pageIndex) {
     return readUtf16(function (buffer, length) {
       return requireModule()._FPDF_GetPageLabel(
@@ -680,6 +686,7 @@
     close: close,
     documentInformation: documentInformation,
     metadata: metadata,
+    language: language,
     pageLabel: pageLabel,
     pageInformation: pageInformation,
     render: render,

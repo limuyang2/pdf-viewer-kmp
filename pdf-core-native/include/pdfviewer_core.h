@@ -154,6 +154,13 @@ PDFV_EXPORT pdfv_status_t pdfv_get_metadata_utf16(
     size_t buffer_units,
     size_t* required_units);
 
+// Document catalog language; independent of the Info dictionary metadata.
+PDFV_EXPORT pdfv_status_t pdfv_get_language_utf16(
+    pdfv_document_t* document,
+    uint16_t* buffer,
+    size_t buffer_units,
+    size_t* required_units);
+
 PDFV_EXPORT pdfv_status_t pdfv_get_page_label_utf16(
     pdfv_document_t* document,
     int32_t page_index,

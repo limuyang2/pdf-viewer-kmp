@@ -1,11 +1,12 @@
 package io.github.limuyang2.pdf.core.contract
 
-internal fun createSinglePageTestPdf(text: String): ByteArray {
+internal fun createSinglePageTestPdf(text: String, language: String? = null): ByteArray {
     require(text.all { it.code in 0x20..0x7E && it != '(' && it != ')' })
+    require(language == null || language.all { it.isLetterOrDigit() || it == '-' })
     val stream = "BT /F1 18 Tf 20 250 Td ($text) Tj ET"
     val objects =
         listOf(
-            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Catalog /Pages 2 0 R ${language?.let { "/Lang ($it)" }.orEmpty()} >>",
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
                 "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",

@@ -84,6 +84,8 @@ internal interface WebPdfiumInterop {
         tag: String,
     ): String?
 
+    fun language(handle: Int): String?
+
     fun pageLabel(
         handle: Int,
         pageIndex: Int,

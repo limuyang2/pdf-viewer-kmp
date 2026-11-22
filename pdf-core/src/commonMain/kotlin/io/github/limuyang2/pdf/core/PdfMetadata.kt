@@ -61,4 +61,6 @@ data class PdfMetadata(
     val modificationDate: String?,
     /** Non-standard information dictionary entries. */
     val additional: Map<String, String> = emptyMap(),
+    /** Primary language from the document catalog's /Lang entry, or null when absent. */
+    val language: String? = null,
 )

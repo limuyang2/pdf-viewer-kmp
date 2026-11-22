@@ -17,6 +17,15 @@ import kotlin.test.assertTrue
 
 class JvmPdfiumBackendIntegrationTest {
     @Test
+    fun readsCatalogLanguage() = runTest {
+        for (language in listOf(null, "en-US", "he", "zh-Hant")) {
+            PdfViewer.open(PdfSource.Bytes(createSinglePageTestPdf("Text", language))).use { document ->
+                assertEquals(language, document.metadata().language)
+            }
+        }
+    }
+
+    @Test
     fun opensReadsAndClosesDocument() =
         runTest {
             PdfViewer.open(source(PdfContractFixture.PageLabels)).use { document ->

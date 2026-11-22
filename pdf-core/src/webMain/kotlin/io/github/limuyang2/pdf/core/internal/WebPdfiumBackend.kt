@@ -129,6 +129,7 @@ internal object WebPdfiumBackend : PdfiumBackend {
             producer = value("Producer"),
             creationDate = value("CreationDate"),
             modificationDate = value("ModDate"),
+            language = platformWebPdfiumInterop.language(document.webHandle()),
         )
     }
 

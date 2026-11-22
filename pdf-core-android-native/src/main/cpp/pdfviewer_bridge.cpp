@@ -252,6 +252,16 @@ Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeMetadata(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeLanguage(
+    JNIEnv* env,
+    jobject,
+    jlong handle) {
+  return ReadUtf16(env, [&](uint16_t* buffer, size_t units, size_t* required) {
+    return pdfv_get_language_utf16(FromHandle(handle), buffer, units, required);
+  });
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativePageLabel(
     JNIEnv* env,
     jobject,

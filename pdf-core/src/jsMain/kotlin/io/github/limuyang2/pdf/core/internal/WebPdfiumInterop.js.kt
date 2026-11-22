@@ -47,6 +47,8 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
             )
         }
 
+        override fun language(handle: Int): String? = adapter().language(handle) as String?
+
         override fun metadata(
             handle: Int,
             tag: String,

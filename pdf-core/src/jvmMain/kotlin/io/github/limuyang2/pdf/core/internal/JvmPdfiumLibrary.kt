@@ -78,6 +78,12 @@ internal interface JvmPdfiumLibrary : Library {
 
     fun FPDF_DocumentHasValidCrossReferenceTable(document: Pointer): Int
 
+    fun FPDFCatalog_GetLanguage(
+        document: Pointer,
+        buffer: Pointer?,
+        bufferLength: NativeLong,
+    ): NativeLong
+
     fun FPDF_GetMetaText(
         document: Pointer,
         tag: String,

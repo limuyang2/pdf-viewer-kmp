@@ -49,6 +49,7 @@ import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_extract_text_utf16
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_abi_version
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_document_info
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_metadata_utf16
+import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_language_utf16
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_info
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_label_utf16
 import io.github.limuyang2.pdf.core.internal.nativecore.pdfv_get_page_links
@@ -235,6 +236,9 @@ internal object IosPdfiumBackend : PdfiumBackend {
             producer = value("Producer"),
             creationDate = value("CreationDate"),
             modificationDate = value("ModDate"),
+            language = readUtf16(emptyIsNull = true) { buffer, units, required ->
+                pdfv_get_language_utf16(document.pointer(), buffer, units, required)
+            },
         )
     }
 

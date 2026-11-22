@@ -113,6 +113,8 @@ private external interface WasmPdfiumAdapter : JsAny {
         tag: String,
     ): String?
 
+    fun language(handle: Int): String?
+
     fun pageLabel(
         handle: Int,
         pageIndex: Int,
@@ -194,6 +196,8 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                     result.hasValidCrossReferenceTable,
             )
         }
+
+        override fun language(handle: Int): String? = adapter().language(handle)
 
         override fun metadata(
             handle: Int,
