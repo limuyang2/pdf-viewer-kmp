@@ -11,7 +11,9 @@ plugins {
 }
 
 kotlin {
-    val pdfiumIosDeploymentTarget = "14.0"
+    // Xcode 27+ libc++ headers no longer support iOS < 15.0 (see
+    // SDK availability.h: "The selected platform is no longer supported by libc++.").
+    val pdfiumIosDeploymentTarget = "18.0"
 
     android {
         namespace = "io.github.limuyang2.pdf.core"
@@ -67,6 +69,7 @@ kotlin {
             nativeCoreOutput.map { it.file("libpdfviewer_core.a") }
         val compileNativeCore =
             tasks.register<Exec>("compilePdfviewerCore$taskSuffix") {
+                description = ""
                 inputs.file(nativeCoreSource)
                 inputs.dir(nativeCoreHeaders)
                 inputs.dir(pdfiumHeaders)
@@ -100,6 +103,7 @@ kotlin {
             }
         val archiveNativeCore =
             tasks.register<Exec>("archivePdfviewerCore$taskSuffix") {
+                description = ""
                 dependsOn(compileNativeCore)
                 inputs.file(nativeCoreObject)
                 outputs.file(nativeCoreArchive)
