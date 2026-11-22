@@ -10,6 +10,9 @@ ios_cinterop_dir="$project_root/pdf-core/src/nativeInterop/cinterop"
 
 grep -q '__pdfViewerCreatePdfiumModule' "$web_pdfium_dir/pdfium.js"
 test -f "$web_pdfium_dir/pdfium-adapter.js"
+# The update script installs this source verbatim; stale copies drop features.
+cmp "$project_root/scripts/pdfium-web/pdfium-adapter.js" \
+    "$web_pdfium_dir/pdfium-adapter.js"
 cmp "$jvm_manifest" "$web_manifest"
 ! grep -q 'globalThis.Module' "$web_pdfium_dir/pdfium.js"
 
