@@ -140,6 +140,14 @@ internal interface JvmPdfiumLibrary : Library {
         flags: Int,
     )
 
+    fun FPDF_RenderPageBitmapWithMatrix(
+        bitmap: Pointer,
+        page: Pointer,
+        matrix: Pointer,
+        clipping: Pointer,
+        flags: Int,
+    )
+
     fun FPDFText_LoadPage(page: Pointer): Pointer?
 
     fun FPDFText_ClosePage(textPage: Pointer)

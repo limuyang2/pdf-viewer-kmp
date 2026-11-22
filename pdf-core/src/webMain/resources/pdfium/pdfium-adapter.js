@@ -310,7 +310,8 @@
     height,
     rotation,
     backgroundArgb,
-    flags
+    flags,
+    startX, startY, fullWidth, fullHeight, transform
   ) {
     return withPage(handle, pageIndex, function (module, page) {
       var stride = width * 4;
@@ -336,16 +337,32 @@
         ) {
           throw new Error("PDFium could not initialize a bitmap");
         }
-        module._FPDF_RenderPageBitmap(
-          bitmap,
-          page,
-          0,
-          0,
-          width,
-          height,
-          rotation,
-          flags
-        );
+        if (transform) {
+          var values = transform.split(",").map(Number);
+          if (values.length !== 10 || !values.every(Number.isFinite)) {
+            throw new Error("Invalid region transform");
+          }
+          if (values[6] >= values[8] || values[7] >= values[9]) {
+            return module.HEAPU8.slice(pixels, pixels + byteCount);
+          }
+          var matrixPointer = module._malloc(40);
+          if (!matrixPointer) throw new Error("Could not allocate render transform");
+          try {
+            values.forEach(function (value, index) {
+              module.HEAPF32[(matrixPointer >> 2) + index] = value;
+            });
+            module._FPDF_RenderPageBitmapWithMatrix(
+              bitmap, page, matrixPointer, matrixPointer + 24, flags
+            );
+          } finally {
+            module._free(matrixPointer);
+          }
+        } else {
+          module._FPDF_RenderPageBitmap(
+            bitmap, page, startX || 0, startY || 0,
+            fullWidth || width, fullHeight || height, rotation, flags
+          );
+        }
         return module.HEAPU8.slice(pixels, pixels + byteCount);
       } finally {
         if (bitmap) module._FPDFBitmap_Destroy(bitmap);

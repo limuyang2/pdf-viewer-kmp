@@ -51,6 +51,10 @@ pinned to `chromium/7961` and does not include V8 or XFA.
 
 Add Maven Central and choose the library needed by `commonMain`:
 
+The dependency examples use the published `0.3.0` release. Region/tile rendering
+and `renderOptions` are additions in the current source and have not been
+released yet; use local project dependencies or a future release for these APIs.
+
 ```kotlin
 repositories {
     mavenCentral()
@@ -102,6 +106,33 @@ suspend fun renderFirstPage(pdfBytes: ByteArray): ByteArray {
 }
 ```
 
+The current source also supports rendering individual tiles, allocating only
+the requested tile bitmap:
+
+```kotlin
+import io.github.limuyang2.pdf.core.PdfPixelRect
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
+
+// Call from a coroutine with an open document.
+val tile = document[0].renderTile(
+    PdfTileRenderRequest(
+        fullPageSize = PdfPixelSize(4000, 6000),
+        tileBounds = PdfPixelRect(512, 1024, 1024, 1536),
+    ),
+)
+try {
+    val pixels = tile.copyPixels() // 512 × 512 BGRA pixels
+} finally {
+    tile.close()
+}
+```
+
+`fullPageSize` is the virtual canvas after rotation; no full-page bitmap of
+that size is allocated. Tile bounds use top-left pixel coordinates with
+exclusive right/bottom edges. For arbitrary PDF regions, use
+`PdfRenderRequest.sourceRect`; see [Region and tile rendering](docs/using-pdf-core.md#region-and-tile-rendering)
+for coordinate conventions.
+
 See [Using PDF Core](docs/using-pdf-core.md) for passwords, metadata, text,
 search, links, bitmap formats, resource ownership, exceptions, and
 platform-specific setup.
@@ -116,6 +147,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.github.limuyang2.pdf.core.PdfDocument
 import io.github.limuyang2.pdf.viewer.PdfView
+import io.github.limuyang2.pdf.viewer.PdfRenderMode
+import io.github.limuyang2.pdf.viewer.PdfViewRenderOptions
 import io.github.limuyang2.pdf.viewer.rememberPdfViewState
 
 @Composable
@@ -128,15 +161,22 @@ fun DocumentPreview(document: PdfDocument) {
         modifier = Modifier.fillMaxSize(),
         maxZoom = 4f,
         gestureZoomEnabled = true,
+        renderOptions = PdfViewRenderOptions(mode = PdfRenderMode.Auto),
     )
 }
 ```
+
+The default `Auto` mode keeps a full-page preview and loads visible tiles when
+higher resolution is needed. `FullPage` uses full-page rendering; `Tiled` uses
+tiles at each settled resolution. Unsupported backends fall back to full-page
+rendering. `maxRenderDimension` caps full-page/preview images, not the virtual
+tile canvas.
 
 The caller owns `PdfDocument` and must close it when the screen is disposed.
 `PdfView` only closes its temporary rendered bitmaps.
 
 See [Using PDF Viewer](docs/using-pdf-viewer.md) for opening a document in
-Compose, state control, zoom configuration, render limits, custom loading and
+Compose, state control, zoom and tile configuration, caching, custom loading and
 error UI, link handling, and search highlighting.
 
 ## Platform setup at a glance
@@ -161,7 +201,7 @@ All current backends support:
 - byte-array sources and password-protected documents;
 - document information, permissions, metadata, and page labels;
 - page size, intrinsic rotation, and bounding boxes;
-- full-page BGRA8888 rendering;
+- full-page, PDF-region, and pixel-tile BGRA8888 rendering;
 - basic text extraction;
 - text search with case, whole-word, and consecutive-match options;
 - internal destinations, URI actions, and link annotation bounds.
@@ -169,7 +209,7 @@ All current backends support:
 Check `PdfViewer.capabilities` before calling optional APIs.
 
 Not yet implemented: bookmarks, embedded thumbnails, text layout geometry on
-the public backends, random-access sources, cropped rendering, forms, editing,
+the public backends, random-access sources, forms, editing,
 progressive loading/rendering, JavaScript, and XFA.
 Unavailable operations throw `PdfUnsupportedFeatureException`.
 

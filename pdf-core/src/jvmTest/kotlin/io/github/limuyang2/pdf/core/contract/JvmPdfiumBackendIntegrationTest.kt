@@ -8,14 +8,17 @@ import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
 
 class JvmPdfiumBackendIntegrationTest {
+    @Test
+    fun rendersRegionsAndTiles() = runTest { verifyRegionRenderingContract() }
+
     @Test
     fun opensReadsAndClosesDocument() =
         runTest {

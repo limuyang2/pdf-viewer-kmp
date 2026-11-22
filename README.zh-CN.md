@@ -50,6 +50,9 @@ PDF Viewer KMP 是基于 PDFium 的 Kotlin Multiplatform PDF 库，可用于
 
 添加 Maven Central，并在 `commonMain` 中选择需要的库：
 
+以下依赖示例使用已发布的 `0.3.0`。区域／分块渲染及 `renderOptions` 为当前
+源码新增能力，尚未发布；体验这些 API 需使用本地工程依赖或等待后续版本。
+
 ```kotlin
 repositories {
     mavenCentral()
@@ -101,6 +104,31 @@ suspend fun renderFirstPage(pdfBytes: ByteArray): ByteArray {
 }
 ```
 
+当前源码还支持按需渲染分块，只分配目标块的位图：
+
+```kotlin
+import io.github.limuyang2.pdf.core.PdfPixelRect
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
+
+// document 为已打开的文档；在协程中调用。
+val tile = document[0].renderTile(
+    PdfTileRenderRequest(
+        fullPageSize = PdfPixelSize(4000, 6000),
+        tileBounds = PdfPixelRect(512, 1024, 1024, 1536),
+    ),
+)
+try {
+    val pixels = tile.copyPixels() // 512 × 512 BGRA 像素
+} finally {
+    tile.close()
+}
+```
+
+`fullPageSize` 是应用旋转后的虚拟画布尺寸，不会分配对应的整页位图。
+`tileBounds` 使用左上角像素坐标，右、下边界不包含在矩形内。
+任意 PDF 区域渲染可使用 `PdfRenderRequest.sourceRect`；坐标约定参见
+[区域与分块渲染](docs/using-pdf-core.zh-CN.md#区域与分块渲染)。
+
 密码、元数据、文本、搜索、链接、位图格式、资源生命周期、异常和各平台配置，
 请参阅 [PDF Core 使用指南](docs/using-pdf-core.zh-CN.md)。
 
@@ -114,6 +142,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.github.limuyang2.pdf.core.PdfDocument
 import io.github.limuyang2.pdf.viewer.PdfView
+import io.github.limuyang2.pdf.viewer.PdfRenderMode
+import io.github.limuyang2.pdf.viewer.PdfViewRenderOptions
 import io.github.limuyang2.pdf.viewer.rememberPdfViewState
 
 @Composable
@@ -126,14 +156,19 @@ fun DocumentPreview(document: PdfDocument) {
         modifier = Modifier.fillMaxSize(),
         maxZoom = 4f,
         gestureZoomEnabled = true,
+        renderOptions = PdfViewRenderOptions(mode = PdfRenderMode.Auto),
     )
 }
 ```
 
+默认 `Auto` 使用整页预览，在需要更高清晰度时加载可见分块。`FullPage` 使用
+整页渲染，`Tiled` 在各稳定分辨率下使用分块；后端不支持分块时自动回退整页。
+`maxRenderDimension` 限制整页／预览位图，不限制分块的虚拟画布尺寸。
+
 调用方拥有 `PdfDocument`，必须在页面销毁时关闭它。`PdfView` 只负责关闭内部
 临时渲染的位图。
 
-在 Compose 中打开文档、状态控制、缩放配置、渲染尺寸限制、自定义加载和错误
+在 Compose 中打开文档、状态控制、缩放与分块配置、缓存、搜索高亮、自定义加载和错误
 UI、链接处理等内容，请参阅
 [PDF Viewer 使用指南](docs/using-pdf-viewer.zh-CN.md)。
 
@@ -158,7 +193,7 @@ UI、链接处理等内容，请参阅
 - 字节数组输入源和密码保护文档；
 - 文档信息、权限、元数据和页面标签；
 - 页面尺寸、固有旋转方向和边界框；
-- 完整页面 BGRA8888 渲染；
+- 整页、PDF 区域和像素分块 BGRA8888 渲染；
 - 基础文本提取；
 - 支持大小写、整词和连续匹配选项的文本搜索；
 - 内部跳转目标、URI 动作和链接标注区域。
@@ -166,7 +201,7 @@ UI、链接处理等内容，请参阅
 调用可选 API 前，可以通过 `PdfViewer.capabilities` 检查当前平台能力。
 
 当前尚未实现：书签、内嵌缩略图、公开后端的文本布局几何信息、随机访问输入源、
-局部裁剪渲染、表单、编辑、渐进式加载或渲染、JavaScript 和 XFA。不支持的操作
+表单、编辑、渐进式加载或渲染、JavaScript 和 XFA。不支持的操作
 会抛出 `PdfUnsupportedFeatureException`。
 
 ## 许可证

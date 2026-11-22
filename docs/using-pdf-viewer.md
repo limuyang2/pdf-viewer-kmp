@@ -132,7 +132,8 @@ Important parameters:
 | `pageBorder` | 1 dp translucent border | Set to `null` to remove page borders. |
 | `maxZoom` | `4f` | Maximum visual zoom multiplier. Must be finite and at least `1f`. |
 | `gestureZoomEnabled` | `true` | Enables or disables multi-touch zoom. Programmatic zoom remains available. |
-| `maxRenderDimension` | `4096` | Maximum width or height, in pixels, of each rendered bitmap. |
+| `maxRenderDimension` | `4096` | Maximum full-page/preview bitmap dimension; does not cap the virtual tile canvas. |
+| `renderOptions` | `PdfViewRenderOptions()` | `Auto`, `FullPage`, or `Tiled` rendering policy. |
 | `searchHighlightStyle` | yellow matches, orange selection | Fill, stroke, corner radius, and padding for search results and the selected result. |
 
 `maxZoom` and `maxRenderDimension` solve different problems:
@@ -140,8 +141,8 @@ Important parameters:
 - `maxZoom` limits how far the page can grow on screen.
 - `maxRenderDimension` limits bitmap memory and rendering cost.
 
-If the displayed page becomes larger than `maxRenderDimension`, it can still
-be shown at the requested zoom, but the capped bitmap may look softer.
+With `FullPage`, enlarging beyond `maxRenderDimension` scales the capped bitmap.
+`Auto` and `Tiled` can render visible tiles at higher resolution.
 
 ## Gesture behavior
 
@@ -360,13 +361,39 @@ Pass `onUriLinkClick = null` to ignore URI links.
 
 ## Rendering and caching
 
-`PdfView` fits pages to the viewport width at `1f` zoom. Render widths are
-quantized into stable buckets so small size changes do not immediately render
-a new bitmap. During a pinch gesture, the current bitmap is scaled; a sharper
-bitmap is rendered after the gesture settles.
+`Auto` (the default) keeps a full-page preview, capped at a requested width of
+1024 pixels and by `maxRenderDimension`. When the settled target resolution
+exceeds the preview, visible tiles progressively cover it. `Tiled` requests
+visible tiles at every settled resolution. Both modes fall back to the existing
+full-page path if the core backend does not support tiles.
 
-The state keeps a small in-memory rendered-page cache. The cache is cleared
-when another document is bound or when `clearRenderCache()` is called.
+```kotlin
+PdfView(
+    document = document,
+    state = viewState,
+    renderOptions = PdfViewRenderOptions(mode = PdfRenderMode.Auto),
+)
+```
+
+The view fits page width at `1f` zoom. During a pinch gesture it scales existing
+images; after the gesture settles it selects a discrete rendering resolution.
+Scrolling updates the visible tile set without changing the page's pixel grid.
+Tiles contain up to 512 × 512 content pixels plus a one-pixel sampling border.
+Only visible tiles are requested; neighboring-tile prefetch is not enabled.
+
+One view-level worker prioritizes previews, merges identical requests and drops
+queued requests when they leave the viewport. A completed in-flight request may
+still enter the document-bound cache. Search highlights and link hit testing
+remain in page display coordinates, independent of tile resolution. Tile
+failures invoke `onPageError` while leaving the preview visible.
+
+Preview and tile caches have separate nominal pixel budgets of 32 MiB each.
+The budget is not a hard process-memory limit: displayed images, one oversized
+full-page entry, native buffers and platform image copies can add memory.
+Binding another document or calling `clearRenderCache()` clears both caches;
+currently displayed images can remain referenced by the UI until replaced.
+The caller retains ownership of the document. Temporary core bitmaps are closed
+after conversion, including during cancellation.
 
 ## Viewer limitations
 
@@ -375,8 +402,7 @@ The current viewer does not provide:
 - selectable text;
 - built-in search input or search-navigation controls;
 - bookmarks or thumbnail navigation;
-- form interaction;
-- tiled rendering for extreme zoom levels.
+- form interaction.
 
 These UI limitations are separate from the lower-level capabilities exposed
 by `pdf-core`.

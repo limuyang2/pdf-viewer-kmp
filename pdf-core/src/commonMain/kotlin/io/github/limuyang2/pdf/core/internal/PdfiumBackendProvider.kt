@@ -2,6 +2,7 @@ package io.github.limuyang2.pdf.core.internal
 
 import io.github.limuyang2.pdf.core.PdfCapabilities
 import io.github.limuyang2.pdf.core.PdfSource
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 import io.github.limuyang2.pdf.core.PdfUnsupportedFeatureException
 
 internal object PdfiumBackendProvider {
@@ -84,6 +85,7 @@ internal object UnavailablePdfiumBackend : PdfiumBackend {
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: io.github.limuyang2.pdf.core.PdfRenderRequest,
+        tile: PdfTileRenderRequest?,
     ): Nothing = unavailable()
 
     override fun thumbnail(

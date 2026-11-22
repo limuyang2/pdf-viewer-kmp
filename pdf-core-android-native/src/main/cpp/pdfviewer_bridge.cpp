@@ -305,7 +305,12 @@ Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeRender(
     jlong background_color,
     jboolean render_annotations,
     jboolean grayscale,
-    jboolean lcd_text) {
+    jboolean lcd_text,
+    jint start_x,
+    jint start_y,
+    jint full_width,
+    jint full_height,
+    jfloatArray transform) {
   try {
     if (width <= 0 || height <= 0) {
       return nullptr;
@@ -322,6 +327,17 @@ Java_io_github_limuyang2_pdf_core_internal_AndroidPdfiumNative_nativeRender(
     request.width = width;
     request.height = height;
     request.rotation = rotation;
+    request.start_x = start_x;
+    request.start_y = start_y;
+    request.full_width = full_width;
+    request.full_height = full_height;
+    if (transform) {
+      if (env->GetArrayLength(transform) != 10) return nullptr;
+      env->GetFloatArrayRegion(transform, 0, 6, request.matrix);
+      env->GetFloatArrayRegion(transform, 6, 4, request.clip);
+      if (env->ExceptionCheck()) return nullptr;
+      request.has_matrix = 1;
+    }
     request.background_argb = static_cast<uint32_t>(background_color);
     if (render_annotations) {
       request.flags |= PDFV_RENDER_ANNOTATIONS;

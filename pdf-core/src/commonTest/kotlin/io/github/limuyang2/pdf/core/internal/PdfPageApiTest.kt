@@ -1,19 +1,67 @@
 package io.github.limuyang2.pdf.core.internal
 
 import io.github.limuyang2.pdf.core.PdfClosedException
+import io.github.limuyang2.pdf.core.PdfPixelRect
+import io.github.limuyang2.pdf.core.PdfRect
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
+import io.github.limuyang2.pdf.core.PdfUnsupportedFeatureException
 import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextRange
 import io.github.limuyang2.pdf.core.PdfViewer
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlinx.coroutines.test.runTest
 
 class PdfPageApiTest {
+    @Test
+    fun unsupportedRegionAndTileNeverEnterBackendButFullPageStillRenders() = runTest {
+        withFakeBackend { backend ->
+            backend.capabilities = backend.capabilities.copy(regionRendering = false, tileRendering = false)
+            PdfViewer.open(PdfSource.Bytes(byteArrayOf(1))).use { document ->
+                val page = document[0]
+                assertFailsWith<PdfUnsupportedFeatureException> {
+                    page.render(PdfRenderRequest(PdfPixelSize(10, 10), sourceRect = PdfRect(0.0, 0.0, 10.0, 10.0)))
+                }
+                assertFailsWith<PdfUnsupportedFeatureException> {
+                    page.renderTile(PdfTileRenderRequest(PdfPixelSize(100, 100), PdfPixelRect(0, 0, 10, 10)))
+                }
+                assertEquals(emptyList(), backend.calls)
+                page.render(PdfRenderRequest(PdfPixelSize(10, 10))).close()
+                assertEquals(listOf("render:0:10x10"), backend.calls)
+                document.close()
+                assertFailsWith<PdfClosedException> {
+                    page.render(PdfRenderRequest(PdfPixelSize(10, 10), sourceRect = PdfRect(0.0, 0.0, 10.0, 10.0)))
+                }
+                assertFailsWith<PdfClosedException> {
+                    page.renderTile(PdfTileRenderRequest(PdfPixelSize(100, 100), PdfPixelRect(0, 0, 10, 10)))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun regionAndTileCapabilitiesAreIndependent() = runTest {
+        withFakeBackend { backend ->
+            PdfViewer.open(PdfSource.Bytes(byteArrayOf(1))).use { document ->
+                val page = document[0]
+                val region = PdfRenderRequest(PdfPixelSize(10, 10), sourceRect = PdfRect(0.0, 0.0, 10.0, 10.0))
+                val tile = PdfTileRenderRequest(PdfPixelSize(100, 100), PdfPixelRect(0, 0, 10, 10))
+                backend.capabilities = backend.capabilities.copy(regionRendering = true, tileRendering = false)
+                page.render(region).close()
+                assertFailsWith<PdfUnsupportedFeatureException> { page.renderTile(tile) }
+                backend.capabilities = backend.capabilities.copy(regionRendering = false, tileRendering = true)
+                assertFailsWith<PdfUnsupportedFeatureException> { page.render(region) }
+                page.renderTile(tile).close()
+                assertEquals(listOf("render:0:10x10", "render:0:10x10"), backend.calls)
+            }
+        }
+    }
+
     @Test
     fun pageIndexIsValidatedBeforeDescriptorCreation() =
         runTest {
@@ -84,6 +132,11 @@ class PdfPageApiTest {
 
                 assertFailsWith<PdfClosedException> {
                     page.information()
+                }
+                assertFailsWith<PdfClosedException> {
+                    page.renderTile(io.github.limuyang2.pdf.core.PdfTileRenderRequest(
+                        PdfPixelSize(100, 100), io.github.limuyang2.pdf.core.PdfPixelRect(0, 0, 10, 10),
+                    ))
                 }
                 assertEquals(listOf("close:1"), backend.calls)
             }

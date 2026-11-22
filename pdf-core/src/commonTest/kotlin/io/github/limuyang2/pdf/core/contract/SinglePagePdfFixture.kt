@@ -3,11 +3,19 @@ package io.github.limuyang2.pdf.core.contract
 internal fun createSinglePageTestPdf(text: String): ByteArray {
     require(text.all { it.code in 0x20..0x7E && it != '(' && it != ')' })
     val stream = "BT /F1 18 Tf 20 250 Td ($text) Tj ET"
+    return createGraphicsTestPdf(stream)
+}
+
+internal fun createGraphicsTestPdf(
+    stream: String,
+    rotation: Int = 0,
+    cropBox: String = "0 0 200 300",
+): ByteArray {
     val objects =
         listOf(
             "<< /Type /Catalog /Pages 2 0 R >>",
             "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] " +
+            "<< /Type /Page /Parent 2 0 R /MediaBox [-50 -50 250 350] /CropBox [$cropBox] /Rotate $rotation " +
                 "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
             "<< /Length ${stream.length} >>\nstream\n$stream\nendstream",

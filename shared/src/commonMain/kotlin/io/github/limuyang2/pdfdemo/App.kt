@@ -57,6 +57,10 @@ import pdfdemo.shared.generated.resources.sample_broken_description
 import pdfdemo.shared.generated.resources.sample_broken_title
 import pdfdemo.shared.generated.resources.sample_dummy_description
 import pdfdemo.shared.generated.resources.sample_dummy_title
+import pdfdemo.shared.generated.resources.sample_perf_mysql_description
+import pdfdemo.shared.generated.resources.sample_perf_mysql_title
+import pdfdemo.shared.generated.resources.sample_perf_postgresql_description
+import pdfdemo.shared.generated.resources.sample_perf_postgresql_title
 import pdfdemo.shared.generated.resources.sample_rich_description
 import pdfdemo.shared.generated.resources.sample_rich_title
 import pdfdemo.shared.generated.resources.search_demo_description
@@ -160,6 +164,30 @@ private fun PdfSamplesScreen(
                     PdfRoute(
                         title = Res.string.sample_rich_title,
                         resourcePath = SAMPLE_PDF_RESOURCE,
+                    ),
+                )
+            },
+        )
+        PdfSampleButton(
+            title = stringResource(Res.string.sample_perf_mysql_title),
+            description = stringResource(Res.string.sample_perf_mysql_description),
+            onClick = {
+                onOpenPdf(
+                    PdfRoute(
+                        title = Res.string.sample_perf_mysql_title,
+                        resourcePath = PERF_MYSQL_PDF_RESOURCE,
+                    ),
+                )
+            },
+        )
+        PdfSampleButton(
+            title = stringResource(Res.string.sample_perf_postgresql_title),
+            description = stringResource(Res.string.sample_perf_postgresql_description),
+            onClick = {
+                onOpenPdf(
+                    PdfRoute(
+                        title = Res.string.sample_perf_postgresql_title,
+                        resourcePath = PERF_POSTGRESQL_PDF_RESOURCE,
                     ),
                 )
             },
@@ -419,3 +447,9 @@ internal const val SAMPLE_PDF_RESOURCE: String =
     "files/pdfs/sample-text-images-links-2-pages.pdf"
 private const val BROKEN_PDF_RESOURCE: String =
     "files/pdfs/broken-loading-error.pdf"
+
+// Stored via Git LFS.
+private const val PERF_MYSQL_PDF_RESOURCE: String =
+    "files/pdfs/perf-mysql-refman-8.0.pdf"
+private const val PERF_POSTGRESQL_PDF_RESOURCE: String =
+    "files/pdfs/perf-postgresql-18.pdf"

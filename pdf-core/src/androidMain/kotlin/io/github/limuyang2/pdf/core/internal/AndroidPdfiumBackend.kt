@@ -24,6 +24,7 @@ import io.github.limuyang2.pdf.core.PdfSize
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextLayout
 import io.github.limuyang2.pdf.core.PdfTextRange
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 import io.github.limuyang2.pdf.core.PdfUnsupportedFeatureException
 import io.github.limuyang2.pdf.core.PdfVersion
 
@@ -32,6 +33,8 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         PdfCapabilities(
             text = true,
             search = true,
+            regionRendering = true,
+            tileRendering = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -137,9 +140,10 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
+        tile: PdfTileRenderRequest?,
     ): PdfBitmap {
-        if (request.sourceRect != null) {
-            unsupported("cropped page rendering on Android")
+        val plan = renderPlan(request, tile) {
+            pageInformation(document, pageIndex)
         }
         val width = request.outputSize.width
         val height = request.outputSize.height
@@ -159,6 +163,11 @@ internal object AndroidPdfiumBackend : PdfiumBackend {
                 renderAnnotations = request.renderAnnotations,
                 grayscale = request.grayscale,
                 lcdText = request.optimizeTextForLcd,
+                startX = plan.startX,
+                startY = plan.startY,
+                fullWidth = plan.fullWidth,
+                fullHeight = plan.fullHeight,
+                transform = plan.matrix?.plus(plan.clip!!),
             ) ?: throw PdfPageException(pageIndex)
         check(pixels.size == byteCountLong.toInt()) {
             "The Android PDFium bridge returned an invalid bitmap size"

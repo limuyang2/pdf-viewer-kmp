@@ -20,7 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,6 +42,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -59,6 +65,8 @@ import io.github.limuyang2.pdf.core.PdfQuad
 import io.github.limuyang2.pdf.core.PdfRect
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfRotation
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
+import io.github.limuyang2.pdf.core.PdfViewer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -95,7 +103,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @param pagePadding The padding around the page list.
  * @param pageColor The background color shown behind each rendered page.
  * @param maxRenderDimension The maximum width or height, in pixels, of a
- * rendered page bitmap.
+ * rendered page bitmap or tile preview; virtual tile canvases are not limited.
  * @param onPageError Called when page information or page rendering fails.
  * @param onLinkClick Called before built-in link handling. Return `true` to
  * consume the link.
@@ -114,6 +122,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * deltas are ignored during a multi-touch zoom to avoid competing with scroll.
  * @param searchHighlightStyle Configures normal and selected search-result
  * highlights.
+ * @param renderOptions Controls preview and visible-tile rendering.
  */
 @Composable
 fun PdfView(
@@ -134,6 +143,7 @@ fun PdfView(
     maxZoom: Float = PdfViewState.DEFAULT_MAX_ZOOM,
     gestureZoomEnabled: Boolean = true,
     searchHighlightStyle: PdfSearchHighlightStyle = PdfSearchHighlightStyle.Default,
+    renderOptions: PdfViewRenderOptions = PdfViewRenderOptions(),
 ) {
     require(!document.isClosed) {
         "PdfView requires an open PdfDocument"
@@ -159,6 +169,24 @@ fun PdfView(
         }
     var transformInProgress by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val scheduler = remember(document, state) {
+        PdfRenderScheduler<PdfRenderCacheKey, ImageBitmap>(
+            scope = coroutineScope,
+            cached = { state.cachedImage(document, it) },
+            store = { key, image -> state.cacheImage(document, key, image) },
+            load = { key ->
+                withContext(Dispatchers.Default) {
+                    val bitmap = if (key.tileBounds == null) {
+                        document[key.pageIndex].render(PdfRenderRequest(PdfPixelSize(key.width, key.height)))
+                    } else {
+                        document[key.pageIndex].renderTile(PdfTileRenderRequest(key.fullPageSize!!, key.tileBounds))
+                    }
+                    try { bitmap.toComposeImageBitmap() } finally { bitmap.close() }
+                }
+            },
+        )
+    }
+    DisposableEffect(scheduler) { onDispose { scheduler.close() } }
     val uriHandler = LocalUriHandler.current
 
     fun activateLink(
@@ -336,6 +364,12 @@ fun PdfView(
                         pageIndex = pageIndex,
                         width = pageWidth,
                         renderWidth = pageWidthPixels,
+                        displayedWidthPixels = displayedPageWidthPixels,
+                        viewportWidth = viewportSizePixels.width,
+                        pagePaddingPixels = pagePaddingPixels,
+                        scheduler = scheduler,
+                        renderOptions = renderOptions,
+                        transformInProgress = transformInProgress,
                         state = state,
                         pageColor = pageColor,
                         pageBorder = pageBorder,
@@ -425,6 +459,12 @@ private fun PdfPage(
     pageIndex: Int,
     width: Dp,
     renderWidth: Int,
+    displayedWidthPixels: Int,
+    viewportWidth: Int,
+    pagePaddingPixels: Int,
+    scheduler: PdfRenderScheduler<PdfRenderCacheKey, ImageBitmap>,
+    renderOptions: PdfViewRenderOptions,
+    transformInProgress: Boolean,
     state: PdfViewState,
     pageColor: Color,
     pageBorder: BorderStroke?,
@@ -527,11 +567,13 @@ private fun PdfPage(
     val currentOnLinkActivated by
         rememberUpdatedState(onLinkActivated)
 
+    val tileSupported = renderOptions.mode != PdfRenderMode.FullPage && PdfViewer.capabilities.tileRendering
+    val previewWidth = if (tileSupported) minOf(viewportWidth, MAX_PREVIEW_WIDTH_PIXELS) else renderWidth
     val aspectRatio = pageInformation.size.width.toFloat() / pageInformation.size.height.toFloat()
-    val renderSize = remember(pageInformation, renderWidth, maxRenderDimension) {
+    val renderSize = remember(pageInformation, previewWidth, maxRenderDimension) {
         calculateRenderSize(
             pageInformation = pageInformation,
-            requestedWidth = renderWidth,
+            requestedWidth = previewWidth,
             maximumDimension = maxRenderDimension,
         )
     }
@@ -553,37 +595,63 @@ private fun PdfPage(
         )
     }
 
-    LaunchedEffect(document, cacheKey) {
-        state.cachedImage(document, cacheKey)?.let {
-            renderState = PdfPageRenderState.Ready(it)
-            return@LaunchedEffect
+    val currentOnError by rememberUpdatedState(onError)
+    val previewOwner = remember { Any() }
+    DisposableEffect(scheduler, cacheKey) {
+        scheduler.update(previewOwner, listOf(cacheKey), priority = 0,
+            result = { _, image -> renderState = PdfPageRenderState.Ready(image) },
+            error = { _, failure ->
+                if (renderState !is PdfPageRenderState.Ready) renderState = PdfPageRenderState.Failed(failure)
+                currentOnError(pageIndex, failure)
+            },
+        )
+        onDispose { scheduler.remove(previewOwner) }
+    }
+    val visibleFraction by remember(state, pageIndex, displayedWidthPixels, viewportWidth, pagePaddingPixels) {
+        derivedStateOf {
+            val layout = state.listState.layoutInfo
+            val item = layout.visibleItemsInfo.firstOrNull { it.index == pageIndex }
+            if (item == null) Rect.Zero else visiblePageFraction(
+                horizontalScroll = state.horizontalScrollState.value,
+                viewportWidth = viewportWidth,
+                pagePadding = pagePaddingPixels,
+                displayedPageWidth = displayedWidthPixels,
+                itemOffset = item.offset,
+                itemSize = item.size,
+                viewportStart = layout.viewportStartOffset,
+                viewportEnd = layout.viewportEndOffset,
+            )
         }
-        if (renderState !is PdfPageRenderState.Ready) {
-            renderState = PdfPageRenderState.Loading
-        }
-        try {
-            val image =
-                withContext(Dispatchers.Default) {
-                    val bitmap =
-                        document[pageIndex].render(
-                            PdfRenderRequest(outputSize = renderSize),
-                        )
-                    try {
-                        bitmap.toComposeImageBitmap()
-                    } finally {
-                        bitmap.close()
-                    }
-                }
-            state.cacheImage(document, cacheKey, image)
-            renderState = PdfPageRenderState.Ready(image)
-        } catch (cancellation: CancellationException) {
-            throw cancellation
-        } catch (failure: Throwable) {
-            if (renderState !is PdfPageRenderState.Ready) {
-                renderState = PdfPageRenderState.Failed(failure)
+    }
+    var targetTileSize by remember(document, pageIndex) { mutableStateOf<PdfPixelSize?>(null) }
+    LaunchedEffect(tileSupported, displayedWidthPixels, transformInProgress, pageInformation) {
+        if (!tileSupported) targetTileSize = null
+        else if (!transformInProgress) {
+            delay(RENDER_SETTLE_DELAY_MILLIS.milliseconds)
+            try {
+                targetTileSize = tileRenderSize(pageInformation, displayedWidthPixels)
+            } catch (failure: IllegalArgumentException) {
+                targetTileSize = null
+                currentOnError(pageIndex, failure)
             }
-            onError(pageIndex, failure)
         }
+    }
+    val tiles = remember(targetTileSize, visibleFraction, tileSupported, renderSize, renderOptions) {
+        val target = targetTileSize
+        if (!tileSupported || target == null ||
+            (renderOptions.mode == PdfRenderMode.Auto && target.width <= renderSize.width && target.height <= renderSize.height)
+        ) emptyList() else planPdfTiles(target, visibleFraction)
+    }
+    val tileImages = remember(document, pageIndex) { mutableStateMapOf<PdfRenderCacheKey, ImageBitmap>() }
+    val tileOwner = remember { Any() }
+    DisposableEffect(scheduler, tiles) {
+        val keys = tiles.map { it.key(pageIndex) }
+        tileImages.keys.toList().filter { it !in keys }.forEach { tileImages.remove(it) }
+        scheduler.update(tileOwner, keys, priority = 1,
+            result = { key, image -> tileImages[key] = image },
+            error = { _, failure -> currentOnError(pageIndex, failure) },
+        )
+        onDispose { scheduler.remove(tileOwner) }
     }
 
     Box(
@@ -616,6 +684,21 @@ private fun PdfPage(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillBounds,
                 )
+                Canvas(Modifier.fillMaxSize()) {
+                    tiles.forEach { tile ->
+                        val image = tileImages[tile.key(pageIndex)] ?: return@forEach
+                        val sx = size.width / tile.fullPageSize.width
+                        val sy = size.height / tile.fullPageSize.height
+                        clipRect(tile.bounds.left * sx, tile.bounds.top * sy,
+                            tile.bounds.right * sx, tile.bounds.bottom * sy) {
+                            translate(tile.renderBounds.left * sx, tile.renderBounds.top * sy) {
+                                scale(sx, sy, pivot = Offset.Zero) {
+                                    drawImage(image)
+                                }
+                            }
+                        }
+                    }
+                }
                 if (searchResults.isNotEmpty()) {
                     PdfSearchHighlights(
                         results = searchResults,
@@ -1020,6 +1103,7 @@ private sealed interface PdfPageInformationState {
     ) : PdfPageInformationState
 }
 
+private const val MAX_PREVIEW_WIDTH_PIXELS: Int = 1024
 private const val RENDER_WIDTH_QUANTUM: Int = 128
 private const val RENDER_SETTLE_DELAY_MILLIS: Long = 100
 private const val MIN_TRANSFORM_POINTERS: Int = 2

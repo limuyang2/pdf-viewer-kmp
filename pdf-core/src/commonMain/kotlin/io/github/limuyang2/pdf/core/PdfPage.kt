@@ -15,10 +15,33 @@ class PdfPage internal constructor(
             backend.pageInformation(handle, index)
         }
 
-    /** Renders the full page into a new bitmap following [request]. */
+    /**
+     * Renders the full page or requested PDF region into a new owned bitmap.
+     *
+     * @throws PdfUnsupportedFeatureException when a region is requested and
+     * the backend does not support [PdfCapabilities.regionRendering].
+     */
     suspend fun render(request: PdfRenderRequest): PdfBitmap =
         document.withOpenDocument(onCancelled = PdfBitmap::close) { backend, handle ->
+            if (request.sourceRect != null && !backend.capabilities.regionRendering) {
+                throw PdfUnsupportedFeatureException("region rendering")
+            }
             backend.render(handle, index, request)
+        }
+
+    /**
+     * Renders a tile using a shared full-page pixel grid, without allocating
+     * the full-page bitmap. The caller owns and must close the result.
+     *
+     * @throws PdfUnsupportedFeatureException when the backend does not support
+     * [PdfCapabilities.tileRendering].
+     */
+    suspend fun renderTile(request: PdfTileRenderRequest): PdfBitmap =
+        document.withOpenDocument(onCancelled = PdfBitmap::close) { backend, handle ->
+            if (!backend.capabilities.tileRendering) {
+                throw PdfUnsupportedFeatureException("tile rendering")
+            }
+            backend.render(handle, index, request.renderRequest(), request)
         }
 
     /**

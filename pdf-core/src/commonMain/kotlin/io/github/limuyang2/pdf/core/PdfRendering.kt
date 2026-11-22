@@ -7,8 +7,10 @@ data class PdfRenderRequest(
     /** Destination bitmap size in pixels. */
     val outputSize: PdfPixelSize,
     /**
-     * Reserved for cropped rendering. Not implemented by the current
-     * backends; must be `null`.
+     * Region in unrotated PDF user space (bottom-left origin, PDF points).
+     * `null` renders the entire visible page. The region is rotated with the
+     * page, then stretched to [outputSize]. Parts outside the visible page
+     * are filled with [backgroundColor]. Both dimensions must be positive.
      */
     val sourceRect: PdfRect? = null,
     /** Extra rotation applied on top of the page's intrinsic rotation. */
@@ -24,7 +26,13 @@ data class PdfRenderRequest(
     val grayscale: Boolean = false,
     /** Optimizes text rendering for LCD subpixel display. */
     val optimizeTextForLcd: Boolean = false,
-)
+) {
+    init {
+        require(sourceRect == null || sourceRect.width > 0.0 && sourceRect.height > 0.0) {
+            "sourceRect dimensions must be positive"
+        }
+    }
+}
 
 /**
  * A rendered page image owned by the caller.
@@ -81,4 +89,38 @@ enum class PdfPixelFormat(
 
     /** One 8-bit luminance channel. */
     Gray8(1),
+}
+
+
+/** A tile of a virtual full-page bitmap; only the tile's pixels are allocated. */
+data class PdfTileRenderRequest(
+    /** Complete page output size after intrinsic and extra rotation, in pixels. */
+    val fullPageSize: PdfPixelSize,
+    /** Tile in top-left pixel coordinates, contained in [fullPageSize]. */
+    val tileBounds: PdfPixelRect,
+    /** Extra clockwise rotation, in addition to the page's intrinsic rotation. */
+    val rotation: PdfRotation = PdfRotation.Degrees0,
+    /** Background fill in ARGB. */
+    val backgroundColor: PdfColor = PdfColor.White,
+    /** Whether to paint annotation appearances. */
+    val renderAnnotations: Boolean = true,
+    /** Whether to render without color information. */
+    val grayscale: Boolean = false,
+    /** Whether to optimize text for an LCD display. */
+    val optimizeTextForLcd: Boolean = false,
+) {
+    init {
+        require(tileBounds.right <= fullPageSize.width && tileBounds.bottom <= fullPageSize.height) {
+            "tileBounds must be contained in fullPageSize"
+        }
+    }
+
+    internal fun renderRequest(): PdfRenderRequest = PdfRenderRequest(
+        outputSize = PdfPixelSize(tileBounds.width, tileBounds.height),
+        rotation = rotation,
+        backgroundColor = backgroundColor,
+        renderAnnotations = renderAnnotations,
+        grayscale = grayscale,
+        optimizeTextForLcd = optimizeTextForLcd,
+    )
 }

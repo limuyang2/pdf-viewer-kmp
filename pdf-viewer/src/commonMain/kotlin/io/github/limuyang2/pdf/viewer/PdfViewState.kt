@@ -17,6 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import io.github.limuyang2.pdf.core.PdfDocument
 import io.github.limuyang2.pdf.core.PdfPageInfo
+import io.github.limuyang2.pdf.core.PdfPixelRect
+import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfSearchMatch
 import io.github.limuyang2.pdf.core.PdfSearchOptions
 import kotlinx.coroutines.CancellationException
@@ -76,6 +78,8 @@ class PdfViewState internal constructor(
         mutableStateOf(emptyMap())
     private val pageInformationCache =
         mutableStateMapOf<Int, PdfPageInfo>()
+    private val tileCache =
+        PdfRenderCache<ImageBitmap>(32L * 1024 * 1024)
     private val renderCache =
         PdfRenderCache<ImageBitmap>(MAX_CACHED_BITMAP_BYTES)
 
@@ -115,6 +119,7 @@ class PdfViewState internal constructor(
     /** Releases all cached page images without changing scroll or zoom. */
     fun clearRenderCache() {
         renderCache.clear()
+        tileCache.clear()
     }
 
     /**
@@ -306,7 +311,7 @@ class PdfViewState internal constructor(
         key: PdfRenderCacheKey,
     ): ImageBitmap? {
         if (cachedDocument !== document) return null
-        return renderCache.get(key)
+        return if (key.tileBounds == null) renderCache.get(key) else tileCache.get(key)
     }
 
     internal fun cacheImage(
@@ -315,7 +320,7 @@ class PdfViewState internal constructor(
         image: ImageBitmap,
     ) {
         if (cachedDocument !== document) return
-        renderCache.put(
+        (if (key.tileBounds == null) renderCache else tileCache).put(
             key = key,
             value = image,
             byteCount = key.width.toLong() * key.height * BYTES_PER_PIXEL,
@@ -548,7 +553,7 @@ class PdfViewState internal constructor(
         const val MIN_ZOOM: Float = 1f
         const val DEFAULT_MAX_ZOOM: Float = 4f
         private const val BYTES_PER_PIXEL: Long = 4
-        private const val MAX_CACHED_BITMAP_BYTES: Long = 64L * 1024 * 1024
+        private const val MAX_CACHED_BITMAP_BYTES: Long = 32L * 1024 * 1024
         private const val NO_SEARCH_RESULT: Int = -1
         private const val MIN_SCROLL_CORRECTION_PIXELS: Float = 0.5f
 
@@ -707,6 +712,8 @@ internal data class PdfRenderCacheKey(
     val pageIndex: Int,
     val width: Int,
     val height: Int,
+    val fullPageSize: PdfPixelSize? = null,
+    val tileBounds: PdfPixelRect? = null,
 )
 
 internal data class PdfViewLayoutMetrics(
