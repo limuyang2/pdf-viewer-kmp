@@ -229,7 +229,7 @@ internal fun PdfSearchScreen(
 }
 
 @Composable
-private fun PdfSearchControls(
+internal fun PdfSearchControls(
     query: String,
     onQueryChange: (String) -> Unit,
     matchCase: Boolean,

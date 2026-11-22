@@ -82,6 +82,9 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs)
+        }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
         }
