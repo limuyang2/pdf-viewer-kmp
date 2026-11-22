@@ -26,8 +26,10 @@ import io.github.limuyang2.pdf.core.PdfVersion
 internal class FakePdfiumBackend(
     var openedPageCount: Int = 3,
 ) : PdfiumBackend {
-    override val capabilities: PdfCapabilities =
+    override var capabilities: PdfCapabilities =
         PdfCapabilities(
+            regionRendering = true,
+            tileRendering = true,
             text = true,
             search = true,
             bookmarks = true,
