@@ -16,7 +16,11 @@ version = libraryVersion
 
 android {
     namespace = "io.github.limuyang2.pdf.core.bridge"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk {
+        version = release(libs.versions.android.compileSdk.get().toInt()) {
+            minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+        }
+    }
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
