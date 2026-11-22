@@ -6,12 +6,12 @@ import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextRange
 import io.github.limuyang2.pdf.core.PdfViewer
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlinx.coroutines.test.runTest
 
 class PdfPageApiTest {
     @Test
@@ -84,6 +84,11 @@ class PdfPageApiTest {
 
                 assertFailsWith<PdfClosedException> {
                     page.information()
+                }
+                assertFailsWith<PdfClosedException> {
+                    page.renderTile(io.github.limuyang2.pdf.core.PdfTileRenderRequest(
+                        PdfPixelSize(100, 100), io.github.limuyang2.pdf.core.PdfPixelRect(0, 0, 10, 10),
+                    ))
                 }
                 assertEquals(listOf("close:1"), backend.calls)
             }

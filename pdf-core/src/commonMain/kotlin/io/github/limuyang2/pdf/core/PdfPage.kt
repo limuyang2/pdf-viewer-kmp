@@ -15,10 +15,19 @@ class PdfPage internal constructor(
             backend.pageInformation(handle, index)
         }
 
-    /** Renders the full page into a new bitmap following [request]. */
+    /** Renders the full page or requested PDF region into a new owned bitmap. */
     suspend fun render(request: PdfRenderRequest): PdfBitmap =
         document.withOpenDocument(onCancelled = PdfBitmap::close) { backend, handle ->
             backend.render(handle, index, request)
+        }
+
+    /**
+     * Renders a tile using a shared full-page pixel grid, without allocating
+     * the full-page bitmap. The caller owns and must close the result.
+     */
+    suspend fun renderTile(request: PdfTileRenderRequest): PdfBitmap =
+        document.withOpenDocument(onCancelled = PdfBitmap::close) { backend, handle ->
+            backend.render(handle, index, request.renderRequest(), request)
         }
 
     /**

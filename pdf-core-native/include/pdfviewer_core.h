@@ -77,6 +77,13 @@ typedef struct pdfv_render_request {
   int32_t rotation;
   uint32_t background_argb;
   uint32_t flags;
+  int32_t start_x;
+  int32_t start_y;
+  int32_t full_width;  /* Zero preserves the original full-bitmap behavior. */
+  int32_t full_height;
+  int32_t has_matrix;
+  float matrix[6];
+  float clip[4]; /* left, top, right, bottom in bitmap pixels */
 } pdfv_render_request_t;
 
 typedef enum pdfv_link_target_type {

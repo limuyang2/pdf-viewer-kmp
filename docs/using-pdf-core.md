@@ -129,11 +129,48 @@ try {
 }
 ```
 
-Current rendering produces full-page `Bgra8888` pixels. `stride` is the byte
+Current rendering produces `Bgra8888` pixels. `stride` is the byte
 distance between adjacent rows; do not assume rows are tightly packed.
 
-`PdfRenderRequest.sourceRect` is reserved for cropped rendering and is not
-implemented by the current backends.
+### Region and tile rendering
+
+All backends support `sourceRect` in unrotated PDF user space (bottom-left
+origin, PDF points), matching link and search geometry. The region follows
+intrinsic and extra rotation, then stretches to `outputSize` without preserving
+aspect ratio. Areas outside the visible page use `backgroundColor`. Empty
+regions are rejected.
+
+```kotlin
+val region = page.render(
+    PdfRenderRequest(
+        outputSize = PdfPixelSize(1200, 800),
+        sourceRect = PdfRect(100.0, 200.0, 400.0, 400.0),
+    ),
+)
+region.close()
+```
+
+Tiles use the full-page pixel grid after rotation, with a top-left origin and
+exclusive right/bottom edges. Only the tile bitmap is allocated:
+
+```kotlin
+val tile = page.renderTile(
+    PdfTileRenderRequest(
+        fullPageSize = PdfPixelSize(4000, 6000),
+        tileBounds = PdfPixelRect(512, 1024, 1024, 1536),
+    ),
+)
+// A caller-owned 512 × 512 bitmap.
+tile.close()
+```
+
+Tiles must be contained in the virtual canvas; edge tiles may be smaller.
+Adjacent tiles must share the full-page size, rotation, and rendering options.
+Callers manage caching, viewport scheduling, prefetching, and any edge overlap.
+Native calls remain serialized; coroutine cancellation does not interrupt an
+in-flight PDFium call, but undispatched bitmap results are released.
+
+Check `PdfViewer.capabilities.regionRendering` and `tileRendering` for support.
 
 ## Extract text
 
@@ -290,7 +327,6 @@ runtime code signing for PDFium.
 The following are not implemented yet:
 
 - random-access input sources;
-- cropped or tiled page rendering;
 - embedded thumbnails;
 - bookmarks;
 - text layout and character geometry;

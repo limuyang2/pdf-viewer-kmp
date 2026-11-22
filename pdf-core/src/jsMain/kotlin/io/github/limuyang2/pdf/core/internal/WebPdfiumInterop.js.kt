@@ -1,8 +1,8 @@
 package io.github.limuyang2.pdf.core.internal
 
+import kotlin.js.Promise
 import kotlinx.coroutines.await
 import org.khronos.webgl.Uint8Array
-import kotlin.js.Promise
 
 internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
     object : WebPdfiumInterop {
@@ -90,6 +90,11 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
             rotation: Int,
             backgroundArgb: UInt,
             flags: Int,
+            startX: Int,
+            startY: Int,
+            fullWidth: Int,
+            fullHeight: Int,
+            transform: String,
         ): ByteArray? {
             val result =
                 adapter().render(
@@ -100,6 +105,7 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                     rotation,
                     backgroundArgb.toDouble(),
                     flags,
+                    startX, startY, fullWidth, fullHeight, transform,
                 ) ?: return null
             val length = result.length as Int
             return ByteArray(length) { index ->

@@ -138,3 +138,26 @@ data class PdfPageInfo(
     /** Bounding (crop) box, or `null` when the page has none. */
     val boundingBox: PdfRect?,
 )
+
+
+/** A nonempty top-left pixel rectangle with exclusive right and bottom edges. */
+data class PdfPixelRect(
+    /** Inclusive left edge. */
+    val left: Int,
+    /** Inclusive top edge. */
+    val top: Int,
+    /** Exclusive right edge. */
+    val right: Int,
+    /** Exclusive bottom edge. */
+    val bottom: Int,
+) {
+    init {
+        require(left >= 0 && top >= 0 && right > left && bottom > top) {
+            "pixel rectangle must be nonempty with non-negative coordinates"
+        }
+    }
+    /** Width in pixels. */
+    val width: Int get() = right - left
+    /** Height in pixels. */
+    val height: Int get() = bottom - top
+}

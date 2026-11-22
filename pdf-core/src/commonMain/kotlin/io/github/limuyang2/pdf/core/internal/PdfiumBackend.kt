@@ -14,6 +14,7 @@ import io.github.limuyang2.pdf.core.PdfSearchOptions
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextLayout
 import io.github.limuyang2.pdf.core.PdfTextRange
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 
 /**
  * Semantic boundary implemented by each platform backend.
@@ -61,6 +62,7 @@ internal interface PdfiumBackend {
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
+        tile: PdfTileRenderRequest? = null,
     ): PdfBitmap
 
     fun thumbnail(

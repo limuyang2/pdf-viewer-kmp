@@ -6,8 +6,8 @@ import js.buffer.ArrayBuffer
 import js.typedarrays.Uint8Array
 import js.typedarrays.toByteArray
 import js.typedarrays.toUint8Array
-import kotlinx.coroutines.await
 import kotlin.js.Promise
+import kotlinx.coroutines.await
 
 private external interface WasmOpenedDocument : JsAny {
     val handle: Int
@@ -131,6 +131,11 @@ private external interface WasmPdfiumAdapter : JsAny {
         rotation: Int,
         backgroundArgb: Double,
         flags: Int,
+        startX: Int,
+        startY: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        transform: String,
     ): Uint8Array<ArrayBuffer>?
 
     fun extractText(
@@ -238,6 +243,11 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
             rotation: Int,
             backgroundArgb: UInt,
             flags: Int,
+            startX: Int,
+            startY: Int,
+            fullWidth: Int,
+            fullHeight: Int,
+            transform: String,
         ): ByteArray? =
             adapter()
                 .render(
@@ -248,6 +258,7 @@ internal actual val platformWebPdfiumInterop: WebPdfiumInterop =
                     rotation,
                     backgroundArgb.toDouble(),
                     flags,
+                    startX, startY, fullWidth, fullHeight, transform,
                 )?.toByteArray()
 
         override fun extractText(

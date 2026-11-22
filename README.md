@@ -161,7 +161,7 @@ All current backends support:
 - byte-array sources and password-protected documents;
 - document information, permissions, metadata, and page labels;
 - page size, intrinsic rotation, and bounding boxes;
-- full-page BGRA8888 rendering;
+- full-page, PDF-region, and pixel-tile BGRA8888 rendering;
 - basic text extraction;
 - text search with case, whole-word, and consecutive-match options;
 - internal destinations, URI actions, and link annotation bounds.
@@ -169,7 +169,7 @@ All current backends support:
 Check `PdfViewer.capabilities` before calling optional APIs.
 
 Not yet implemented: bookmarks, embedded thumbnails, text layout geometry on
-the public backends, random-access sources, cropped rendering, forms, editing,
+the public backends, random-access sources, forms, editing,
 progressive loading/rendering, JavaScript, and XFA.
 Unavailable operations throw `PdfUnsupportedFeatureException`.
 

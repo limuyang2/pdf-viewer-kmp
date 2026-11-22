@@ -1,6 +1,7 @@
 #include "pdfviewer_core.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <new>
@@ -488,6 +489,22 @@ pdfv_status_t pdfv_render_page(pdfv_document_t* document,
         request->rotation < 0 || request->rotation > 3) {
       return PDFV_ERROR_INVALID_ARGUMENT;
     }
+    if (request->full_width < 0 || request->full_height < 0 ||
+        (request->full_width == 0) != (request->full_height == 0)) {
+      return PDFV_ERROR_INVALID_ARGUMENT;
+    }
+    if (request->has_matrix) {
+      for (float value : request->matrix) {
+        if (!std::isfinite(value)) return PDFV_ERROR_INVALID_ARGUMENT;
+      }
+      for (float value : request->clip) {
+        if (!std::isfinite(value)) return PDFV_ERROR_INVALID_ARGUMENT;
+      }
+      const double determinant =
+          static_cast<double>(request->matrix[0]) * request->matrix[3] -
+          static_cast<double>(request->matrix[1]) * request->matrix[2];
+      if (determinant == 0) return PDFV_ERROR_INVALID_ARGUMENT;
+    }
     const size_t width = static_cast<size_t>(request->width);
     const size_t height = static_cast<size_t>(request->height);
     if (width > static_cast<size_t>(std::numeric_limits<int>::max()) / 4 ||
@@ -526,8 +543,25 @@ pdfv_status_t pdfv_render_page(pdfv_document_t* document,
     if (request->flags & PDFV_RENDER_LCD_TEXT) {
       flags |= FPDF_LCD_TEXT;
     }
-    FPDF_RenderPageBitmap(bitmap.get(), page.get(), 0, 0, request->width,
-                          request->height, request->rotation, flags);
+    if (request->has_matrix &&
+        (request->clip[0] >= request->clip[2] || request->clip[1] >= request->clip[3])) {
+      return PDFV_OK;
+    }
+    if (request->has_matrix) {
+      const FS_MATRIX matrix{request->matrix[0], request->matrix[1],
+                             request->matrix[2], request->matrix[3],
+                             request->matrix[4], request->matrix[5]};
+      const FS_RECTF clip{request->clip[0], request->clip[1],
+                          request->clip[2], request->clip[3]};
+      FPDF_RenderPageBitmapWithMatrix(bitmap.get(), page.get(), &matrix, &clip,
+                                      flags);
+    } else {
+      FPDF_RenderPageBitmap(bitmap.get(), page.get(), request->start_x,
+                            request->start_y,
+                            request->full_width > 0 ? request->full_width : request->width,
+                            request->full_height > 0 ? request->full_height : request->height,
+                            request->rotation, flags);
+    }
     return PDFV_OK;
   });
 }

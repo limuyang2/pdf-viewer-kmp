@@ -27,6 +27,7 @@ import io.github.limuyang2.pdf.core.PdfSize
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextLayout
 import io.github.limuyang2.pdf.core.PdfTextRange
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 import io.github.limuyang2.pdf.core.PdfUnsupportedFeatureException
 import io.github.limuyang2.pdf.core.PdfVersion
 import io.github.limuyang2.pdf.core.internal.nativecore.PDFV_ABI_VERSION
@@ -81,6 +82,7 @@ import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.set
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 
@@ -92,6 +94,8 @@ internal object IosPdfiumBackend : PdfiumBackend {
         PdfCapabilities(
             text = true,
             search = true,
+            regionRendering = true,
+            tileRendering = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -287,9 +291,10 @@ internal object IosPdfiumBackend : PdfiumBackend {
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
+        tile: PdfTileRenderRequest?,
     ): PdfBitmap {
-        if (request.sourceRect != null) {
-            unsupported("cropped page rendering on iOS")
+        val plan = renderPlan(request, tile) {
+            pageInformation(document, pageIndex)
         }
         val width = request.outputSize.width
         val height = request.outputSize.height
@@ -306,6 +311,13 @@ internal object IosPdfiumBackend : PdfiumBackend {
                     this.width = width
                     this.height = height
                     rotation = request.rotation.degrees / 90
+                    start_x = plan.startX
+                    start_y = plan.startY
+                    full_width = plan.fullWidth
+                    full_height = plan.fullHeight
+                    has_matrix = if (plan.matrix == null) 0 else 1
+                    plan.matrix?.forEachIndexed { index, value -> matrix[index] = value }
+                    plan.clip?.forEachIndexed { index, value -> clip[index] = value }
                     background_argb = request.backgroundColor.argb
                     flags = 0u
                     if (request.renderAnnotations) {

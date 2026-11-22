@@ -5,12 +5,17 @@ import io.github.limuyang2.pdf.core.PdfPixelSize
 import io.github.limuyang2.pdf.core.PdfRenderRequest
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfViewer
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.runTest
 
 class WebPdfiumBackendIntegrationTest {
+    @Test
+    fun rendersRegionsAndTiles() = runTest {
+        io.github.limuyang2.pdf.core.contract.verifyRegionRenderingContract()
+    }
+
     @Test
     fun opensReadsRendersAndClosesPdf() =
         runTest {

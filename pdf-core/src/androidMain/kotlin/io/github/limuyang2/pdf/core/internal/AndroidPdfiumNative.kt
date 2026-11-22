@@ -43,6 +43,11 @@ internal object AndroidPdfiumNative {
         renderAnnotations: Boolean,
         grayscale: Boolean,
         lcdText: Boolean,
+        startX: Int,
+        startY: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        transform: FloatArray?,
     ): ByteArray?
 
     external fun nativeExtractText(

@@ -27,6 +27,7 @@ import io.github.limuyang2.pdf.core.PdfSize
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextLayout
 import io.github.limuyang2.pdf.core.PdfTextRange
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 import io.github.limuyang2.pdf.core.PdfUnsupportedFeatureException
 import io.github.limuyang2.pdf.core.PdfUnsupportedSecurityException
 import io.github.limuyang2.pdf.core.PdfVersion
@@ -43,6 +44,8 @@ internal object WebPdfiumBackend : PdfiumBackend {
         PdfCapabilities(
             text = true,
             search = true,
+            regionRendering = true,
+            tileRendering = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -161,9 +164,10 @@ internal object WebPdfiumBackend : PdfiumBackend {
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
+        tile: PdfTileRenderRequest?,
     ): PdfBitmap {
-        if (request.sourceRect != null) {
-            unsupported("cropped page rendering in browsers")
+        val plan = renderPlan(request, tile) {
+            pageInformation(document, pageIndex)
         }
         val width = request.outputSize.width
         val height = request.outputSize.height
@@ -185,6 +189,11 @@ internal object WebPdfiumBackend : PdfiumBackend {
                 rotation = request.rotation.degrees / 90,
                 backgroundArgb = request.backgroundColor.argb,
                 flags = flags,
+                startX = plan.startX,
+                startY = plan.startY,
+                fullWidth = plan.fullWidth,
+                fullHeight = plan.fullHeight,
+                transform = plan.matrix?.plus(plan.clip!!)?.joinToString(",") ?: "",
             ) ?: throw PdfPageException(pageIndex)
         check(pixels.size == byteCountLong.toInt()) {
             "PDFium returned an invalid bitmap size"

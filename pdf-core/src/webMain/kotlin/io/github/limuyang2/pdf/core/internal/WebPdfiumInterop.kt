@@ -102,6 +102,11 @@ internal interface WebPdfiumInterop {
         rotation: Int,
         backgroundArgb: UInt,
         flags: Int,
+        startX: Int,
+        startY: Int,
+        fullWidth: Int,
+        fullHeight: Int,
+        transform: String,
     ): ByteArray?
 
     fun extractText(

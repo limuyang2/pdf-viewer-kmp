@@ -20,6 +20,7 @@ import io.github.limuyang2.pdf.core.PdfSize
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextLayout
 import io.github.limuyang2.pdf.core.PdfTextRange
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 import io.github.limuyang2.pdf.core.PdfVersion
 
 internal class FakePdfiumBackend(
@@ -165,6 +166,7 @@ internal class FakePdfiumBackend(
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
+        tile: PdfTileRenderRequest?,
     ): PdfBitmap {
         calls += "render:$pageIndex:${request.outputSize.width}x${request.outputSize.height}"
         return FakePdfBitmap(request.outputSize, request.backgroundColor)

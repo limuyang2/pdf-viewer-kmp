@@ -35,6 +35,7 @@ import io.github.limuyang2.pdf.core.PdfSize
 import io.github.limuyang2.pdf.core.PdfSource
 import io.github.limuyang2.pdf.core.PdfTextLayout
 import io.github.limuyang2.pdf.core.PdfTextRange
+import io.github.limuyang2.pdf.core.PdfTileRenderRequest
 import io.github.limuyang2.pdf.core.PdfUnsupportedFeatureException
 import io.github.limuyang2.pdf.core.PdfUnsupportedSecurityException
 import io.github.limuyang2.pdf.core.PdfVersion
@@ -57,6 +58,8 @@ internal object JvmPdfiumBackend : PdfiumBackend {
         PdfCapabilities(
             text = true,
             search = true,
+            regionRendering = true,
+            tileRendering = true,
             bookmarks = false,
             links = true,
             thumbnails = false,
@@ -274,9 +277,10 @@ internal object JvmPdfiumBackend : PdfiumBackend {
         document: NativeDocumentHandle,
         pageIndex: Int,
         request: PdfRenderRequest,
+        tile: PdfTileRenderRequest?,
     ): PdfBitmap {
-        if (request.sourceRect != null) {
-            unsupported("cropped page rendering on JVM")
+        val plan = renderPlan(request, tile) {
+            pageInformation(document, pageIndex)
         }
         val width = request.outputSize.width
         val height = request.outputSize.height
@@ -322,16 +326,23 @@ internal object JvmPdfiumBackend : PdfiumBackend {
                     if (request.optimizeTextForLcd) {
                         flags = flags or RENDER_LCD_TEXT
                     }
-                    pdfium.FPDF_RenderPageBitmap(
-                        bitmap,
-                        page,
-                        0,
-                        0,
-                        width,
-                        height,
-                        request.rotation.degrees / 90,
-                        flags,
-                    )
+                    if (plan.clip != null && (plan.clip[0] >= plan.clip[2] || plan.clip[1] >= plan.clip[3])) {
+                        // Empty device clips must not be passed to PDFium.
+                    } else if (plan.matrix == null) {
+                        pdfium.FPDF_RenderPageBitmap(
+                            bitmap, page, plan.startX, plan.startY,
+                            plan.fullWidth, plan.fullHeight,
+                            request.rotation.degrees / 90, flags,
+                        )
+                    } else {
+                        Memory(24).use { matrix ->
+                            Memory(16).use { clip ->
+                                plan.matrix.forEachIndexed { i, value -> matrix.setFloat(i * 4L, value) }
+                                plan.clip!!.forEachIndexed { i, value -> clip.setFloat(i * 4L, value) }
+                                pdfium.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clip, flags)
+                            }
+                        }
+                    }
                 } finally {
                     pdfium.FPDFBitmap_Destroy(bitmap)
                 }

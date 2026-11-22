@@ -5,7 +5,7 @@ package io.github.limuyang2.pdf.core
  *
  * A capability can be available in PDFium before it is exposed by the current
  * public API version. The current Android, iOS, JVM, and browser backends
- * enable only [text], [search], and [links].
+ * enable [text], [search], [links], [regionRendering], and [tileRendering].
  */
 data class PdfCapabilities(
     /** Basic text extraction through [PdfPage.extractText]. */
@@ -30,4 +30,8 @@ data class PdfCapabilities(
     val javascriptExecution: Boolean,
     /** Rendering XFA (XML Forms Architecture) content. */
     val xfa: Boolean,
+    /** Rendering a PDF user-space region. */
+    val regionRendering: Boolean = false,
+    /** Rendering a tile of a virtual full-page bitmap. */
+    val tileRendering: Boolean = false,
 )

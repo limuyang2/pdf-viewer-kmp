@@ -124,10 +124,46 @@ try {
 }
 ```
 
-当前渲染结果为完整页面的 `Bgra8888` 像素。`stride` 表示相邻两行之间的
+当前渲染结果为 `Bgra8888` 像素。`stride` 表示相邻两行之间的
 字节距离，不能假设每行像素一定紧密排列。
 
-`PdfRenderRequest.sourceRect` 为局部裁剪渲染预留，当前后端尚未实现。
+### 区域与分块渲染
+
+所有后端均支持 `sourceRect`。区域使用未旋转的 PDF 页面坐标（左下角原点，
+单位 point），与链接、搜索结果的坐标一致。区域跟随页面固有旋转和请求中的
+额外旋转，再拉伸到 `outputSize`；不会自动保持宽高比。超出页面有效边界的
+部分填充背景色，宽或高为零的区域会被拒绝。
+
+```kotlin
+val region = page.render(
+    PdfRenderRequest(
+        outputSize = PdfPixelSize(1200, 800),
+        sourceRect = PdfRect(100.0, 200.0, 400.0, 400.0),
+    ),
+)
+region.close()
+```
+
+分块使用应用旋转后的完整页面像素网格，原点在左上角，右、下边界不包含在
+矩形内。`fullPageSize` 仅决定缩放比例，不会分配完整页面大小的位图：
+
+```kotlin
+val tile = page.renderTile(
+    PdfTileRenderRequest(
+        fullPageSize = PdfPixelSize(4000, 6000),
+        tileBounds = PdfPixelRect(512, 1024, 1024, 1536),
+    ),
+)
+// 返回 512 × 512 的位图，由调用方关闭。
+tile.close()
+```
+
+分块必须完整位于虚拟画布内；边缘块可以更小。相邻块必须使用相同的
+`fullPageSize`、旋转和渲染选项。core 提供单次渲染，缓存、可见区域调度、
+预取及必要的边缘重叠由调用方负责。原生操作串行执行，协程取消不保证中断
+已经开始的 PDFium 调用，但未交付的位图会被释放。
+
+可以通过 `PdfViewer.capabilities.regionRendering` 和 `tileRendering` 查询支持情况。
 
 ## 提取文本
 
@@ -278,7 +314,6 @@ dylib 或在运行时为 PDFium 签名。
 以下功能尚未实现：
 
 - 随机访问输入源；
-- 页面裁剪或分块渲染；
 - 内嵌缩略图；
 - 书签；
 - 文本布局和字符几何信息；
