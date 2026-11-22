@@ -6,6 +6,10 @@
     <string name="sample_rich_description">PDF containing text, images, and links</string>
     <string name="search_demo_title">Search &amp; highlight test</string>
     <string name="search_demo_description">Test query options, result navigation, and configurable highlights</string>
+    <string name="sample_perf_mysql_title">MySQL 8.0 Reference Manual · 6790 pages</string>
+    <string name="sample_perf_mysql_description">Multi-thousand-page vector-text manual for scroll and deep-zoom performance tests</string>
+    <string name="sample_perf_postgresql_title">PostgreSQL 18 Manual · 3178 pages</string>
+    <string name="sample_perf_postgresql_description">Multi-thousand-page vector-text manual for scroll and deep-zoom performance tests</string>
     <string name="sample_broken_title">Broken PDF · loading error</string>
     <string name="sample_broken_description">Intentionally corrupted PDF for testing the loading error screen</string>
     <string name="page_load_failed">Page %1$d failed to load</string>
