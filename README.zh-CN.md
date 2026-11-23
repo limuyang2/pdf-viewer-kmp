@@ -43,7 +43,7 @@ PDF Viewer KMP 是基于 PDFium 的 Kotlin Multiplatform PDF 库，可用于
 | JVM 桌面端 | macOS arm64/x64、Linux x64、Windows x64 |
 | 浏览器 | JavaScript、Wasm |
 
-目前不支持 iOS x64 和 Catalyst。内置 PDFium 固定为 `chromium/7961`
+目前不支持 iOS x64 和 Catalyst。内置 PDFium 固定为 `chromium/8165`
 版本，不包含 V8 和 XFA。
 
 ## 添加依赖
@@ -180,7 +180,7 @@ UI、链接处理等内容，请参阅
 - **浏览器：** 需要在配置的 PDFium 静态资源目录中部署
   `manifest.properties`、`pdfium-adapter.js`、`pdfium.js` 和
   `pdfium.wasm`。
-- **iOS：** 最低部署版本为 iOS 14.0。PDFium 已通过发布的 KLIB 静态链接，
+- **iOS：** 最低部署版本为 iOS 17.0。PDFium 已通过发布的 KLIB 静态链接，
   应用无需额外嵌入动态库。
 
 详细配置参见

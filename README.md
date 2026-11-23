@@ -45,7 +45,7 @@ The project is split into two public libraries:
 | Browser | JavaScript, Wasm |
 
 iOS x64 and Catalyst are not currently supported. The bundled PDFium build is
-pinned to `chromium/7961` and does not include V8 or XFA.
+pinned to `chromium/8165` and does not include V8 or XFA.
 
 ## Add the dependency
 
@@ -188,7 +188,7 @@ error UI, link handling, and search highlighting.
   `--enable-native-access=ALL-UNNAMED`.
 - **Browser:** deploy `manifest.properties`, `pdfium-adapter.js`, `pdfium.js`,
   and `pdfium.wasm` under the configured PDFium asset directory.
-- **iOS:** the minimum deployment target is iOS 14.0. PDFium is linked
+- **iOS:** the minimum deployment target is iOS 17.0. PDFium is linked
   statically from the published KLIB; no extra dylib embedding is required.
 
 The detailed setup commands are in

@@ -12,7 +12,7 @@ The project uses PDFium binaries and build tooling from:
 The currently pinned PDFium release is:
 
 ```text
-chromium/7961
+chromium/8165
 ```
 
 The selected flavor is `pdfium`, with PDF JavaScript and XFA disabled.
@@ -96,7 +96,7 @@ pdf_enable_v8 = false
 pdf_enable_xfa = false
 symbol_level = 0
 use_custom_libcxx = false
-ios_deployment_target = "14.0"
+ios_deployment_target = "17.0"
 ```
 
 The important constraints are:
@@ -113,8 +113,8 @@ The important constraints are:
 Build the two upstream targets as:
 
 ```bash
-./build.sh -b chromium/7961 -s ios arm64 device
-./build.sh -b chromium/7961 -s ios arm64 simulator
+./build.sh -b chromium/8165 -s ios arm64 device
+./build.sh -b chromium/8165 -s ios arm64 simulator
 ```
 
 Apply the GN arguments above in the upstream configure step before building.
@@ -156,7 +156,7 @@ For the currently pinned version, the updater preserves the checked-in iOS
 static archives:
 
 ```bash
-./scripts/update-pdfium.sh chromium/7961
+./scripts/update-pdfium.sh chromium/8165
 ```
 
 When changing to a new PDFium version, first build matching static iOS

@@ -1190,6 +1190,38 @@ FPDFPageObj_SetDashArray(FPDF_PAGEOBJECT page_object,
                          size_t dash_count,
                          float phase);
 
+// Experimental API.
+// Get a bitmap rasterization of the stroke pattern of |page_object|.
+// To render correctly, the caller must provide the |document| associated with
+// |page_object|. The returned bitmap will be owned by the caller, and
+// FPDFBitmap_Destroy() must be called on the returned bitmap when it is no
+// longer needed.
+//
+//   document    - handle to the document containing |page_object|.
+//   page_object - handle to a page object.
+//
+// Returns the bitmap, or NULL if the stroke is not a tiling pattern or on
+// failure.
+FPDF_EXPORT FPDF_BITMAP FPDF_CALLCONV
+FPDFPageObj_GetRenderedStrokePattern(FPDF_DOCUMENT document,
+                                     FPDF_PAGEOBJECT page_object);
+
+// Experimental API.
+// Get a bitmap rasterization of the fill pattern of |page_object|.
+// To render correctly, the caller must provide the |document| associated with
+// |page_object|. The returned bitmap will be owned by the caller, and
+// FPDFBitmap_Destroy() must be called on the returned bitmap when it is no
+// longer needed.
+//
+//   document    - handle to the document containing |page_object|.
+//   page_object - handle to a page object.
+//
+// Returns the bitmap, or NULL if the fill is not a tiling pattern or on
+// failure.
+FPDF_EXPORT FPDF_BITMAP FPDF_CALLCONV
+FPDFPageObj_GetRenderedFillPattern(FPDF_DOCUMENT document,
+                                   FPDF_PAGEOBJECT page_object);
+
 // Get number of segments inside |path|.
 //
 //   path - handle to a path.
@@ -1280,6 +1312,24 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FPDFPath_BezierTo(FPDF_PAGEOBJECT path,
                                                       float y2,
                                                       float x3,
                                                       float y3);
+
+// Experimental API.
+// Get the two control points of a cubic Bezier segment in |path| at |index|.
+//
+//   path                 - handle to a path.
+//   index                - the index of the endpoint of a cubic Bezier segment.
+//   first_control_point  - the first control point.
+//   second_control_point - the second control point.
+//
+// Returns TRUE on success. Returns FALSE when |path| is not a valid path,
+// |index| is out of bounds, the indexed segment is not the endpoint of a cubic
+// Bezier segment, or either output pointer is NULL. On failure, the output
+// parameters are not modified.
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDFPath_GetBezierControlPoints(FPDF_PAGEOBJECT path,
+                                size_t index,
+                                FS_POINTF* first_control_point,
+                                FS_POINTF* second_control_point);
 
 // Close the current subpath of a given path.
 //

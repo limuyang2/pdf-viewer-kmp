@@ -9,7 +9,7 @@ plugins {
 }
 
 kotlin {
-    val pdfiumIosDeploymentTarget = "18.0"
+    val pdfiumIosDeploymentTarget = "17.0"
 
     listOf(
         iosArm64(),

@@ -13,7 +13,9 @@ plugins {
 kotlin {
     // Xcode 27+ libc++ headers no longer support iOS < 15.0 (see
     // SDK availability.h: "The selected platform is no longer supported by libc++.").
-    val pdfiumIosDeploymentTarget = "18.0"
+    // PDFium static archives (chromium/8165+) are built with
+    // ios_deployment_target = "17.0".
+    val pdfiumIosDeploymentTarget = "17.0"
 
     android {
         namespace = "io.github.limuyang2.pdf.core"
