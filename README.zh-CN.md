@@ -50,7 +50,7 @@ PDF Viewer KMP 是基于 PDFium 的 Kotlin Multiplatform PDF 库，可用于
 
 添加 Maven Central，并在 `commonMain` 中选择需要的库：
 
-以下依赖示例使用已发布的 `0.4.0`。`pdf-viewer` 依赖 Compose Multiplatform
+以下依赖示例使用已发布的 `0.4.1`。`pdf-viewer` 依赖 Compose Multiplatform
 `1.13.0-rc01`（预发布版本）；除非使用方声明其他版本，Gradle 会解析到该版本。
 
 ```kotlin
@@ -62,10 +62,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // 只使用 PDF 底层 API：
-            implementation("io.github.limuyang2:pdf-core:0.4.0")
+            implementation("io.github.limuyang2:pdf-core:0.4.1")
 
             // 或使用 Compose Viewer，pdf-core 会被传递引入：
-            implementation("io.github.limuyang2:pdf-viewer:0.4.0")
+            implementation("io.github.limuyang2:pdf-viewer:0.4.1")
         }
     }
 }

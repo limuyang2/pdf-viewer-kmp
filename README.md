@@ -51,7 +51,7 @@ pinned to `chromium/8165` and does not include V8 or XFA.
 
 Add Maven Central and choose the library needed by `commonMain`:
 
-The dependency examples use the published `0.4.0` release. `pdf-viewer` depends
+The dependency examples use the published `0.4.1` release. `pdf-viewer` depends
 on Compose Multiplatform `1.13.0-rc01`, a pre-release; Gradle resolves consumers
 to it unless they declare a different version.
 
@@ -64,10 +64,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // PDF APIs only:
-            implementation("io.github.limuyang2:pdf-core:0.4.0")
+            implementation("io.github.limuyang2:pdf-core:0.4.1")
 
             // Or the Compose viewer. pdf-core is included transitively:
-            implementation("io.github.limuyang2:pdf-viewer:0.4.0")
+            implementation("io.github.limuyang2:pdf-viewer:0.4.1")
         }
     }
 }

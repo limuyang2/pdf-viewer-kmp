@@ -2,6 +2,21 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.4.1 - 2026-11-23
+
+### PDF Viewer
+
+- Fix a zoom regression introduced in 0.4.0. When zooming moved a page to
+  another tile resolution level, every drawn tile was removed before the
+  replacement tiles were rendered, so the page fell back to the low-resolution
+  preview and then sharpened again. Tiles of the previous level now remain on
+  screen until tiles of the new level cover them.
+
+### PDF Core
+
+- Released at 0.4.1 so both libraries keep the same version. It has no source
+  changes; `pdf-core-android` still depends on `pdf-core-android-native` 0.2.0.
+
 ## 0.4.0 - 2026-11-23
 
 This release adds region and tile rendering to both libraries and upgrades the
