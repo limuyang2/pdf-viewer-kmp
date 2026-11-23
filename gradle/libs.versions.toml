@@ -1,4 +1,6 @@
 [versions]
+pdf = "0.4.0"
+pdfAndroidNative = "0.2.0"
 agp = "9.5.2"
 android-compileSdk = "37"
 android-compileSdkMinor = "2"

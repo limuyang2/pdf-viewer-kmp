@@ -51,9 +51,9 @@ pinned to `chromium/8165` and does not include V8 or XFA.
 
 Add Maven Central and choose the library needed by `commonMain`:
 
-The dependency examples use the published `0.3.0` release. Region/tile rendering
-and `renderOptions` are additions in the current source and have not been
-released yet; use local project dependencies or a future release for these APIs.
+The dependency examples use the published `0.4.0` release. `pdf-viewer` depends
+on Compose Multiplatform `1.13.0-rc01`, a pre-release; Gradle resolves consumers
+to it unless they declare a different version.
 
 ```kotlin
 repositories {
@@ -64,10 +64,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // PDF APIs only:
-            implementation("io.github.limuyang2:pdf-core:0.3.0")
+            implementation("io.github.limuyang2:pdf-core:0.4.0")
 
             // Or the Compose viewer. pdf-core is included transitively:
-            implementation("io.github.limuyang2:pdf-viewer:0.3.0")
+            implementation("io.github.limuyang2:pdf-viewer:0.4.0")
         }
     }
 }
@@ -106,8 +106,7 @@ suspend fun renderFirstPage(pdfBytes: ByteArray): ByteArray {
 }
 ```
 
-The current source also supports rendering individual tiles, allocating only
-the requested tile bitmap:
+Render individual tiles, allocating only the requested tile bitmap:
 
 ```kotlin
 import io.github.limuyang2.pdf.core.PdfPixelRect
@@ -181,11 +180,11 @@ error UI, link handling, and search highlighting.
 
 ## Platform setup at a glance
 
-- **Android:** supports API 24 and newer. The PDFium JNI runtime is loaded
-  automatically.
-- **JVM:** native PDFium libraries are bundled and extracted automatically to
-  the system temporary directory. Some runtimes may require
-  `--enable-native-access=ALL-UNNAMED`.
+- **Android:** supports API 24 and newer; compile against SDK 37.2 or newer.
+  The PDFium JNI runtime is loaded automatically.
+- **JVM:** requires a Java 21 or newer runtime. Native PDFium libraries are
+  bundled and extracted automatically to the system temporary directory. Some
+  runtimes may require `--enable-native-access=ALL-UNNAMED`.
 - **Browser:** deploy `manifest.properties`, `pdfium-adapter.js`, `pdfium.js`,
   and `pdfium.wasm` under the configured PDFium asset directory.
 - **iOS:** the minimum deployment target is iOS 17.0. PDFium is linked

@@ -2,6 +2,66 @@
 
 [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.4.0 - 2026-11-23
+
+This release adds region and tile rendering to both libraries and upgrades the
+bundled PDFium. It also raises consumer requirements: Java 21 bytecode,
+compileSdk 37.2, iOS 17.0, and Compose Multiplatform 1.13.0-rc01.
+
+### PDF Core
+
+- Add region rendering. `PdfRenderRequest.sourceRect` selects a region in
+  unrotated PDF user space (bottom-left origin, PDF points). The region is
+  rotated with the page, stretched to `outputSize`, and parts outside the
+  visible page are filled with `backgroundColor`.
+- Add `PdfPage.renderTile`. A `PdfTileRenderRequest` renders one tile of a
+  shared full-page pixel grid without allocating a full-page bitmap.
+- Add `PdfCapabilities.regionRendering` and `tileRendering`. Region and tile
+  requests throw `PdfUnsupportedFeatureException` on backends without the
+  matching capability, so viewers can fall back to full-page rendering.
+- Upgrade the bundled PDFium from `chromium/7961` to `chromium/8165`
+  (PDFium 160.0.8165.0) on Android, iOS, JVM, and the browser.
+- Publish the Android PDFium bridge as `pdf-core-android-native` 0.2.0, a
+  separately versioned artifact that `pdf-core-android` depends on. Its JNI
+  `nativeRender` signature changed for region and tile rendering and its
+  bundled PDFium was replaced, so `pdf-core` 0.4.0 on Android requires this
+  native version.
+- Add a publish-time check that rejects a release when the native sources no
+  longer match the recorded `pdf-core-android-native` version.
+- Raise the Android Kotlin and Java compile targets from 11 to 21. Desktop JVM
+  and Android artifacts now contain Java 21 class files.
+- Raise the minimum iOS version from 14.0 to 17.0 for device arm64 and
+  simulator arm64.
+
+### PDF Viewer
+
+- Add tiled rendering. The default `PdfRenderMode.Auto` keeps a full-page
+  preview and covers the visible area with 512-pixel tiles once the settled
+  zoom needs more detail than the preview, so deep zoom is no longer capped by
+  `maxRenderDimension`. Set `PdfViewRenderOptions.mode` to `Auto`, `FullPage`,
+  or `Tiled`; backends without `tileRendering` fall back to full-page
+  rendering.
+- Serialize page rendering through a single view-level worker that prioritizes
+  previews, deduplicates identical requests, and drops queued work that leaves
+  the viewport.
+- Give tiles a dedicated 32 MiB cache and reduce the full-page bitmap cache
+  from 64 MiB to 32 MiB, so fewer large pages stay cached in `FullPage` mode
+  than in 0.3.0.
+- Upgrade to Compose Multiplatform 1.13.0-rc01. Gradle resolves consumers to
+  this pre-release unless they declare a different version.
+
+### Build
+
+- Upgrade Kotlin 2.4.10 to 2.4.21, Android Gradle Plugin 9.3.2 to 9.5.2, and
+  compileSdk 36 to 37.2.
+- Keep the web PDFium adapter source copy in sync with the installed one, so
+  future PDFium updates keep text search and links.
+
+### Demos
+
+- Add the MySQL 8.0 Reference Manual (6790 pages) and the PostgreSQL 18 Manual
+  (3178 pages) as demo entries for rendering performance testing.
+
 ## 0.3.0 - 2026-09-02
 
 ### PDF Core

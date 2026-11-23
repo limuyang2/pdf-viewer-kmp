@@ -182,7 +182,7 @@ kotlin {
 }
 
 val libraryGroup = "io.github.limuyang2"
-val libraryVersion = "0.3.0"
+val libraryVersion = libs.versions.pdf.get()
 
 extra["publicationGroup"] = libraryGroup
 extra["publicationVersion"] = libraryVersion
@@ -192,3 +192,8 @@ extra["publicationDescription"] =
     "A Kotlin Multiplatform PDF document and rendering library backed by PDFium."
 
 apply(from = rootProject.file("gradle/publishing.gradle.kts"))
+
+// The Android artifact depends on the separately versioned native runtime.
+tasks.matching { it.name == "publishAllPublicationsToMavenRepository" }.configureEach {
+    dependsOn(":pdf-core-android-native:checkNativeRelease")
+}

@@ -9,7 +9,7 @@
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.limuyang2:pdf-core:0.3.0")
+            implementation("io.github.limuyang2:pdf-core:0.4.0")
         }
     }
 }
@@ -258,8 +258,9 @@ println("links=${capabilities.links}")
 
 ### Android
 
-Android 支持 API 24 及更高版本。PDFium JNI runtime 会自动加载，
-不需要手动初始化。
+Android 支持 API 24 及更高版本。产物使用 compileSdk 37.2 构建，包含
+Java 21 字节码；接入工程需使用 SDK 37.2 或更高版本编译。PDFium JNI runtime
+会自动加载，不需要手动初始化。
 
 ### JVM 桌面端
 
@@ -268,6 +269,8 @@ JVM 版本内置以下平台的 PDFium：
 - macOS arm64 和 x64；
 - Linux x64；
 - Windows x64。
+
+JVM 产物包含 Java 21 字节码，需要在 JDK 21 或更高版本上构建和运行。
 
 首次使用时，库会校验对应的原生文件，并将它解压到系统临时目录。
 不支持的操作系统或 CPU 架构会抛出 `PdfUnsupportedFeatureException`。
@@ -302,7 +305,7 @@ globalThis.__pdfViewerPdfiumBaseUrl = "/assets/pdfium/";
 
 ### iOS
 
-内置 iOS 二进制要求 iOS 14.0 或更高版本。目前支持真机 arm64 和模拟器
+内置 iOS 二进制要求 iOS 17.0 或更高版本。目前支持真机 arm64 和模拟器
 arm64。
 
 PDFium 和原生 bridge 已作为静态归档嵌入发布的 cinterop KLIB。外部 Kotlin

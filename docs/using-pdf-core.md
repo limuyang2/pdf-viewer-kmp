@@ -10,7 +10,7 @@ PDF links.
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.limuyang2:pdf-core:0.3.0")
+            implementation("io.github.limuyang2:pdf-core:0.4.0")
         }
     }
 }
@@ -267,8 +267,10 @@ into `PdfException`.
 
 ### Android
 
-Android supports API 24 and newer. The PDFium JNI runtime is loaded
-automatically; no manual initialization is required.
+Android supports API 24 and newer. The artifact is built with compileSdk 37.2
+and contains Java 21 bytecode; compile the consuming module against SDK 37.2
+or newer. The PDFium JNI runtime is loaded automatically; no manual
+initialization is required.
 
 ### JVM desktop
 
@@ -277,6 +279,8 @@ The JVM artifact bundles PDFium for:
 - macOS arm64 and x64;
 - Linux x64;
 - Windows x64.
+
+The artifact contains Java 21 bytecode, so build and run on JDK 21 or newer.
 
 At first use, the matching library is verified and extracted below the system
 temporary directory. Unsupported OS/architecture combinations throw
@@ -314,7 +318,7 @@ The trailing slash is required.
 
 ### iOS
 
-The bundled iOS binaries require iOS 14.0 or newer. Supported targets are
+The bundled iOS binaries require iOS 17.0 or newer. Supported targets are
 device arm64 and simulator arm64.
 
 PDFium and the native bridge are embedded as static archives in the published

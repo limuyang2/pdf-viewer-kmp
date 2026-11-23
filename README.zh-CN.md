@@ -50,8 +50,8 @@ PDF Viewer KMP 是基于 PDFium 的 Kotlin Multiplatform PDF 库，可用于
 
 添加 Maven Central，并在 `commonMain` 中选择需要的库：
 
-以下依赖示例使用已发布的 `0.3.0`。区域／分块渲染及 `renderOptions` 为当前
-源码新增能力，尚未发布；体验这些 API 需使用本地工程依赖或等待后续版本。
+以下依赖示例使用已发布的 `0.4.0`。`pdf-viewer` 依赖 Compose Multiplatform
+`1.13.0-rc01`（预发布版本）；除非使用方声明其他版本，Gradle 会解析到该版本。
 
 ```kotlin
 repositories {
@@ -62,10 +62,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             // 只使用 PDF 底层 API：
-            implementation("io.github.limuyang2:pdf-core:0.3.0")
+            implementation("io.github.limuyang2:pdf-core:0.4.0")
 
             // 或使用 Compose Viewer，pdf-core 会被传递引入：
-            implementation("io.github.limuyang2:pdf-viewer:0.3.0")
+            implementation("io.github.limuyang2:pdf-viewer:0.4.0")
         }
     }
 }
@@ -104,7 +104,7 @@ suspend fun renderFirstPage(pdfBytes: ByteArray): ByteArray {
 }
 ```
 
-当前源码还支持按需渲染分块，只分配目标块的位图：
+也可以按需渲染分块，只分配目标块的位图：
 
 ```kotlin
 import io.github.limuyang2.pdf.core.PdfPixelRect
@@ -174,9 +174,11 @@ UI、链接处理等内容，请参阅
 
 ## 各平台配置概览
 
-- **Android：** 支持 API 24 及更高版本，PDFium JNI runtime 会自动加载。
-- **JVM：** 原生 PDFium 库已内置，会自动解压到系统临时目录。部分 JVM
-  运行时可能需要 `--enable-native-access=ALL-UNNAMED`。
+- **Android：** 支持 API 24 及更高版本，接入工程需使用 SDK 37.2 或更高
+  版本编译；PDFium JNI runtime 会自动加载。
+- **JVM：** 需要 Java 21 或更高版本的运行时。原生 PDFium 库已内置，会自动
+  解压到系统临时目录。部分 JVM 运行时可能需要
+  `--enable-native-access=ALL-UNNAMED`。
 - **浏览器：** 需要在配置的 PDFium 静态资源目录中部署
   `manifest.properties`、`pdfium-adapter.js`、`pdfium.js` 和
   `pdfium.wasm`。

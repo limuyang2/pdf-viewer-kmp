@@ -2,6 +2,59 @@
 
 [English](CHANGELOG.md)
 
+## 0.4.0 - 2026-11-23
+
+本版本为两个库新增区域与分块渲染，并升级内置 PDFium。同时抬高了接入要求：
+Java 21 字节码、compileSdk 37.2、iOS 17.0，以及 Compose Multiplatform
+1.13.0-rc01。
+
+### PDF Core
+
+- 新增区域渲染。`PdfRenderRequest.sourceRect` 指定未旋转 PDF 用户空间中的
+  区域（左下角原点，单位为 PDF 点）。区域随页面旋转后拉伸到 `outputSize`，
+  超出可见页面的部分使用 `backgroundColor` 填充。
+- 新增 `PdfPage.renderTile`。`PdfTileRenderRequest` 基于共享的整页像素网格
+  渲染单个分块，不会分配整页位图。
+- 新增 `PdfCapabilities.regionRendering` 和 `tileRendering`。后端不具备对应
+  能力时，区域和分块请求抛出 `PdfUnsupportedFeatureException`，查看器可据此
+  回退到整页渲染。
+- 内置 PDFium 从 `chromium/7961` 升级到 `chromium/8165`（PDFium
+  160.0.8165.0），覆盖 Android、iOS、JVM 和浏览器。
+- Android PDFium bridge 以 `pdf-core-android-native` 0.2.0 发布，版本号独立，
+  由 `pdf-core-android` 依赖。其 JNI `nativeRender` 签名因区域和分块渲染发生
+  变化，内置 PDFium 也已替换，因此 Android 上的 `pdf-core` 0.4.0 需要这个
+  native 版本。
+- 新增发布校验：native 源码与已记录的 `pdf-core-android-native` 版本不一致
+  时，构建失败。
+- Android 的 Kotlin 和 Java 编译目标从 11 提高到 21。桌面 JVM 和 Android
+  产物现包含 Java 21 字节码。
+- 真机 arm64 和模拟器 arm64 的 iOS 最低部署版本从 14.0 提高到 17.0。
+
+### PDF Viewer
+
+- 新增分块渲染。默认的 `PdfRenderMode.Auto` 保留整页预览，稳定后的缩放需要
+  比预览更多细节时，用 512 像素分块覆盖可见区域，深度缩放不再受
+  `maxRenderDimension` 限制。`PdfViewRenderOptions.mode` 可设为 `Auto`、
+  `FullPage` 或 `Tiled`；后端不支持 `tileRendering` 时回退整页渲染。
+- 页面渲染统一由视图级的单个 worker 串行执行：预览优先、相同请求去重，
+  并丢弃已离开可视区域的排队任务。
+- 分块使用独立的 32 MiB 缓存，整页位图缓存预算从 64 MiB 降为 32 MiB，
+  `FullPage` 模式下可缓存的大页面数量少于 0.3.0。
+- 升级到 Compose Multiplatform 1.13.0-rc01。除非使用方声明其他版本，Gradle
+  会解析到该预发布版本。
+
+### 构建
+
+- Kotlin 从 2.4.10 升级到 2.4.21，Android Gradle Plugin 从 9.3.2 升级到
+  9.5.2，compileSdk 从 36 升级到 37.2。
+- 同步 Web PDFium adapter 的源码副本与安装副本，避免后续 PDFium 升级丢失
+  文本搜索和链接能力。
+
+### Demo
+
+- 新增 MySQL 8.0 Reference Manual（6790 页）和 PostgreSQL 18 Manual
+  （3178 页）两个 Demo 入口，用于渲染性能测试。
+
 ## 0.3.0 - 2026-09-02
 
 ### PDF Core
