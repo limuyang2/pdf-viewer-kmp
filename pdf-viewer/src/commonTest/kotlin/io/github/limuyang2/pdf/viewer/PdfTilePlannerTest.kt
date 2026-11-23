@@ -87,4 +87,28 @@ class PdfTilePlannerTest {
         assertTrue(key != key.copy(fullPageSize = PdfPixelSize(2048, 2048)))
         assertTrue(key != tile.key(1))
     }
+
+    @Test
+    fun previousLevelStaysUntilPlannedTilesCoverIt() {
+        val old = planPdfTiles(PdfPixelSize(1024, 1024), Rect(0f, 0f, .5f, .5f)).single()
+        val plan = planPdfTiles(PdfPixelSize(2048, 2048), Rect(0f, 0f, .5f, .5f)).associateBy { it.key(0) }
+        val drawn = mutableMapOf(old.key(0) to PdfDrawnTile(old, "old"))
+        assertTrue(unneededTileKeys(drawn, plan).isEmpty())
+        // Three of four planned tiles leave a quarter of the old tile exposed.
+        plan.keys.take(3).forEach { drawn[it] = PdfDrawnTile(plan.getValue(it), "new") }
+        assertTrue(unneededTileKeys(drawn, plan).isEmpty())
+        plan.keys.forEach { drawn[it] = PdfDrawnTile(plan.getValue(it), "new") }
+        assertEquals(setOf(old.key(0)), unneededTileKeys(drawn, plan))
+    }
+
+    @Test
+    fun tilesWithoutSuccessorsAreDropped() {
+        val old = planPdfTiles(PdfPixelSize(1024, 1024), Rect(0f, 0f, .5f, .5f)).single()
+        val drawn = mutableMapOf(old.key(0) to PdfDrawnTile(old, "old"))
+        // The viewport moved to page area the old tile does not show.
+        val elsewhere = planPdfTiles(PdfPixelSize(2048, 2048), Rect(.5f, .5f, 1f, 1f)).associateBy { it.key(0) }
+        assertEquals(setOf(old.key(0)), unneededTileKeys(drawn, elsewhere))
+        // No planned tiles at all, as when the preview is sharp enough.
+        assertEquals(setOf(old.key(0)), unneededTileKeys(drawn, emptyMap()))
+    }
 }

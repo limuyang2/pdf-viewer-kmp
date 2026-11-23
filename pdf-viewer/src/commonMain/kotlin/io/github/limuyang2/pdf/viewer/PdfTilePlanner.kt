@@ -17,7 +17,37 @@ internal data class PdfPlannedTile(
         pageIndex, renderBounds.width, renderBounds.height,
         fullPageSize = fullPageSize, tileBounds = renderBounds,
     )
+
+    /** Whether the logical bounds share page area with [other], which may belong to another level. */
+    fun overlaps(other: PdfPlannedTile): Boolean = pageBounds.overlaps(other.pageBounds)
 }
+
+/** Logical bounds as a page fraction, so tiles of different levels stay comparable. */
+private val PdfPlannedTile.pageBounds: Rect
+    get() = Rect(
+        bounds.left / fullPageSize.width.toFloat(), bounds.top / fullPageSize.height.toFloat(),
+        bounds.right / fullPageSize.width.toFloat(), bounds.bottom / fullPageSize.height.toFloat(),
+    )
+
+/** A planned tile together with its rendered image. */
+internal class PdfDrawnTile<T>(
+    val tile: PdfPlannedTile,
+    val image: T,
+)
+
+/**
+ * Keys of [drawn] tiles outside [plan] that no longer stand in for a planned
+ * tile which has not been drawn yet.
+ */
+internal fun <T> unneededTileKeys(
+    drawn: Map<PdfRenderCacheKey, PdfDrawnTile<T>>,
+    plan: Map<PdfRenderCacheKey, PdfPlannedTile>,
+): Set<PdfRenderCacheKey> =
+    drawn.filter { (key, tile) ->
+        key !in plan && plan.none { (plannedKey, planned) ->
+            plannedKey !in drawn && planned.overlaps(tile.tile)
+        }
+    }.keys
 
 /** Visible fractions are relative to the laid-out page, independent of render resolution. */
 internal fun planPdfTiles(fullPageSize: PdfPixelSize, visible: Rect): List<PdfPlannedTile> {

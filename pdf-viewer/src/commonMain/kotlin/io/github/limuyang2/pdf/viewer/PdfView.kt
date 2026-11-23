@@ -642,15 +642,25 @@ private fun PdfPage(
             (renderOptions.mode == PdfRenderMode.Auto && target.width <= renderSize.width && target.height <= renderSize.height)
         ) emptyList() else planPdfTiles(target, visibleFraction)
     }
-    val tileImages = remember(document, pageIndex) { mutableStateMapOf<PdfRenderCacheKey, ImageBitmap>() }
+    // Tiles of a previous level stay on screen until the planned level covers them.
+    val drawnTiles =
+        remember(document, pageIndex) {
+            mutableStateMapOf<PdfRenderCacheKey, PdfDrawnTile<ImageBitmap>>()
+        }
     val tileOwner = remember { Any() }
     DisposableEffect(scheduler, tiles) {
-        val keys = tiles.map { it.key(pageIndex) }
-        tileImages.keys.toList().filter { it !in keys }.forEach { tileImages.remove(it) }
-        scheduler.update(tileOwner, keys, priority = 1,
-            result = { key, image -> tileImages[key] = image },
+        val planned = tiles.associateBy { it.key(pageIndex) }
+        fun dropUnneeded() {
+            unneededTileKeys(drawnTiles, planned).forEach { drawnTiles.remove(it) }
+        }
+        scheduler.update(tileOwner, planned.keys.toList(), priority = 1,
+            result = { key, image ->
+                drawnTiles[key] = PdfDrawnTile(planned.getValue(key), image)
+                dropUnneeded()
+            },
             error = { _, failure -> currentOnError(pageIndex, failure) },
         )
+        dropUnneeded()
         onDispose { scheduler.remove(tileOwner) }
     }
 
@@ -685,18 +695,36 @@ private fun PdfPage(
                     contentScale = ContentScale.FillBounds,
                 )
                 Canvas(Modifier.fillMaxSize()) {
-                    tiles.forEach { tile ->
-                        val image = tileImages[tile.key(pageIndex)] ?: return@forEach
-                        val sx = size.width / tile.fullPageSize.width
-                        val sy = size.height / tile.fullPageSize.height
-                        clipRect(tile.bounds.left * sx, tile.bounds.top * sy,
-                            tile.bounds.right * sx, tile.bounds.bottom * sy) {
-                            translate(tile.renderBounds.left * sx, tile.renderBounds.top * sy) {
-                                scale(sx, sy, pivot = Offset.Zero) {
-                                    drawImage(image)
+                    val level = tiles.firstOrNull()?.fullPageSize
+                    if (level != null) {
+                        // Lower levels go underneath; the planned level stays on top.
+                        drawnTiles.values
+                            .sortedWith(
+                                compareBy<PdfDrawnTile<ImageBitmap>>(
+                                    { it.tile.fullPageSize == level },
+                                    { it.tile.fullPageSize.width },
+                                ),
+                            )
+                            .forEach { drawn ->
+                                val tile = drawn.tile
+                                val sx = size.width / tile.fullPageSize.width
+                                val sy = size.height / tile.fullPageSize.height
+                                clipRect(
+                                    tile.bounds.left * sx,
+                                    tile.bounds.top * sy,
+                                    tile.bounds.right * sx,
+                                    tile.bounds.bottom * sy,
+                                ) {
+                                    translate(
+                                        tile.renderBounds.left * sx,
+                                        tile.renderBounds.top * sy,
+                                    ) {
+                                        scale(sx, sy, pivot = Offset.Zero) {
+                                            drawImage(drawn.image)
+                                        }
+                                    }
                                 }
                             }
-                        }
                     }
                 }
                 if (searchResults.isNotEmpty()) {
